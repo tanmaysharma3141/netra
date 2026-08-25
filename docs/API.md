@@ -59,6 +59,7 @@ Case object includes computed stats: event counts per source type, alert counts 
 |--------|------|-------|
 | GET | /cases/:id/events | Unified timeline. Query params: `source_type`, `event_type`, `entity_id`, `from`, `to`, `limit`, `offset` |
 | GET | /events/:id | Single event incl. raw original record |
+| POST | /events/:id/notes | Append investigator note. Body `{ "note": "string" }`. Investigator/Admin only → returns updated Event |
 
 Events are paginated (`limit` default 200, max 1000), ordered by timestamp desc.
 

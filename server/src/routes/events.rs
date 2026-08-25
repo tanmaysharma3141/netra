@@ -1,13 +1,15 @@
 use uuid::Uuid;
 
 use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde::Deserialize;
 use sqlx::FromRow;
 
 use crate::auth::Authed;
-use crate::models::{Event, EntityType, EventType, LatLng, SourceType};
+use crate::db;
+use crate::models::{ApiError, Event, EntityType, EventType, LatLng, Role, SourceType};
 use crate::state::AppState;
 
 #[derive(Debug, FromRow)]
@@ -124,6 +126,97 @@ pub async fn detail(
     .await
     .map_err(internal)?;
     Ok(Json(row.map(|r| r.to_api())))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AddNoteRequest {
+    pub note: String,
+}
+
+pub async fn annotate(
+    State(state): State<AppState>,
+    authed: Authed,
+    Path(event_id): Path<Uuid>,
+    Json(req): Json<AddNoteRequest>,
+) -> Result<Json<Event>, Response> {
+    authed.require(&[Role::Admin, Role::Investigator])?;
+    let note = req.note.trim().to_string();
+    if note.is_empty() {
+        return Err(ApiError::new("bad_request", "note cannot be empty")
+            .into_response(StatusCode::BAD_REQUEST));
+    }
+
+    let row: Option<(String, String, String)> = sqlx::query_as(
+        "SELECT case_id, notes, ts FROM events WHERE id = ?1",
+    )
+    .bind(event_id.to_string())
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(internal)?;
+
+    let Some((case_id_str, notes_json, _ts)) = row else {
+        return Err(ApiError::new("not_found", "event not found").into_response(StatusCode::NOT_FOUND));
+    };
+
+    ensure_event_visible(&state, &authed, &case_id_str).await?;
+
+    let mut notes: Vec<String> = serde_json::from_str(&notes_json).unwrap_or_default();
+    notes.push(note);
+
+    sqlx::query("UPDATE events SET notes = ?2 WHERE id = ?1")
+        .bind(event_id.to_string())
+        .bind(serde_json::to_string(&notes).unwrap_or_else(|_| "[]".into()))
+        .execute(&state.pool)
+        .await
+        .map_err(internal)?;
+
+    db::audit(
+        &state.pool,
+        &authed.id,
+        Some(&case_id_str),
+        "event.annotated",
+        serde_json::json!({ "event_id": event_id.to_string(), "note_preview": notes.last().map(|n| n.chars().take(80).collect::<String>()) }),
+    )
+    .await;
+
+    fetch_event(&state, event_id).await
+}
+
+async fn ensure_event_visible(
+    state: &AppState,
+    authed: &Authed,
+    case_id_str: &str,
+) -> Result<(), Response> {
+    if matches!(authed.role, Role::Admin | Role::Supervisor) {
+        return Ok(());
+    }
+    let row: Option<(String, String)> =
+        sqlx::query_as("SELECT created_by, assignees FROM cases WHERE id = ?1")
+            .bind(case_id_str)
+            .fetch_optional(&state.pool)
+            .await
+            .map_err(internal)?;
+    let Some((created_by, assignees)) = row else {
+        return Err(ApiError::new("not_found", "event not found").into_response(StatusCode::NOT_FOUND));
+    };
+    let assigned: Vec<String> = serde_json::from_str(&assignees).unwrap_or_default();
+    if created_by == authed.id || assigned.iter().any(|a| a == &authed.id) {
+        Ok(())
+    } else {
+        Err(ApiError::new("not_found", "event not found").into_response(StatusCode::NOT_FOUND))
+    }
+}
+
+async fn fetch_event(state: &AppState, event_id: Uuid) -> Result<Json<Event>, Response> {
+    let row: Option<EventRow> = sqlx::query_as(
+        "SELECT id, case_id, ts, source_type, entity_id, entity_type, event_type, value, lat, lng, raw, notes FROM events WHERE id = ?1",
+    )
+    .bind(event_id.to_string())
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(internal)?;
+    row.map(|r| Json(r.to_api()))
+        .ok_or_else(|| ApiError::new("not_found", "event not found").into_response(StatusCode::NOT_FOUND))
 }
 
 fn internal<E: std::fmt::Display>(e: E) -> Response {

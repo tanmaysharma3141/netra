@@ -123,3 +123,7 @@ export interface AuditEntry {
 export interface ApiError {
   error: { code: string; message: string };
 }
+
+export interface AddNoteRequest {
+  note: string;
+}

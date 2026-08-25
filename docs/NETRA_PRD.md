@@ -492,10 +492,10 @@ The GPU is required only on the machine hosting the NETRA server. Client machine
 
 ## 10. Milestones
 
-### Round 1 (Due: 25 Aug 2026, 23:00 IST)
+### Round 1 (Submitted: 25 Aug 2026) ✅
 - [x] Pitch deck (NETRA branding)
-- [ ] Frontend mockup (React, hardcoded synthetic data)
-- [ ] Screen recording video
+- [x] Frontend mockup (React, hardcoded synthetic data) *(shipped as live Tauri app — login/dashboard/cases on real stubs)*
+- [x] Screen recording video *(2:23 final cut + segment clips)*
 
 ### Pre-Hack Prep (26 Aug – 7 Sep 2026)
 - [ ] Rust project scaffold (Axum server binary + Tauri v2 thin client + sqlx + entity schema)
