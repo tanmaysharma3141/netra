@@ -216,7 +216,7 @@ pub fn demo_report() -> Report {
     Report {
         id: Uuid::new_v4(),
         case_id: CASE_ID,
-        version: "v0.1-draft".into(),
+        version: 1,
         generated_by: GeneratedBy::Template,
         approved_by: None,
         created_at: chrono::Utc::now(),

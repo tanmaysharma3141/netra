@@ -26,28 +26,28 @@ str_enum!(Role {
 });
 
 str_enum!(SourceType {
-    Cdr => "cdr",
-    Ipdr => "ipdr",
-    Bank => "bank",
-    Social => "social",
+    Cdr => "CDR",
+    Ipdr => "IPDR",
+    Bank => "BANK",
+    Social => "SOCIAL",
 });
 
 str_enum!(EntityType {
-    Phone => "phone",
-    Imei => "imei",
-    BankAcc => "bank_acc",
-    Ip => "ip",
-    Handle => "handle",
+    Phone => "PHONE",
+    Imei => "IMEI",
+    BankAcc => "BANK_ACC",
+    Ip => "IP",
+    Handle => "HANDLE",
 });
 
 str_enum!(EventType {
-    Call => "call",
-    Sms => "sms",
-    Data => "data",
-    Txn => "txn",
-    Post => "post",
-    Login => "login",
-    Other => "other",
+    Call => "CALL",
+    Sms => "SMS",
+    Data => "DATA",
+    Txn => "TXN",
+    Post => "POST",
+    Login => "LOGIN",
+    Other => "OTHER",
 });
 
 str_enum!(LinkTier {
@@ -94,7 +94,7 @@ pub struct User {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "UPPERCASE")]
 pub enum SourceType {
     Cdr,
     Ipdr,
@@ -103,7 +103,7 @@ pub enum SourceType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "UPPERCASE")]
 pub enum EntityType {
     Phone,
     Imei,
@@ -113,7 +113,7 @@ pub enum EntityType {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(rename_all = "UPPERCASE")]
 pub enum EventType {
     Call,
     Sms,
@@ -293,7 +293,7 @@ pub struct Trail {
 pub struct Report {
     pub id: Id,
     pub case_id: Id,
-    pub version: String,
+    pub version: u32,
     #[serde(rename = "generated_by")]
     pub generated_by: GeneratedBy,
     pub approved_by: Option<Id>,
@@ -360,11 +360,27 @@ pub struct ChatRequest {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum ChatFrame {
-    Delta { delta: String },
-    Sources { sources: Vec<Id> },
-    Done,
+pub struct ChatFrame {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub delta: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sources: Option<Vec<Id>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub done: Option<bool>,
+}
+
+impl ChatFrame {
+    pub fn delta(chunk: String) -> Self {
+        Self { delta: Some(chunk), sources: None, done: None }
+    }
+
+    pub fn sources(ids: Vec<Id>) -> Self {
+        Self { delta: None, sources: Some(ids), done: None }
+    }
+
+    pub fn done() -> Self {
+        Self { delta: None, sources: None, done: Some(true) }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -417,11 +433,15 @@ impl ApiError {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "event", rename_all = "snake_case")]
+#[serde(tag = "event")]
 pub enum WsEvent {
+    #[serde(rename = "alert.created")]
     AlertCreated { payload: Alert },
+    #[serde(rename = "ingest.progress")]
     IngestProgress { payload: IngestProgress },
+    #[serde(rename = "training.progress")]
     TrainingProgress { payload: TrainingProgress },
+    #[serde(rename = "model.updated")]
     ModelUpdated { payload: ModelUpdated },
 }
 

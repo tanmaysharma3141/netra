@@ -12,7 +12,7 @@ Hardware note: GPU lives on this machine; everything runs server-side.
 - [x] Serve **stub routes** for every endpoint in `docs/API.md` returning hardcoded JSON shaped by `contracts/api-types.ts`
 - [x] Wire WebSocket `/ws` endpoint that accepts subscribe frames and echoes a fake `alert.created` every 30s *(plus ingest.progress + training.progress emitters)*
 - [x] Health check route + basic request logging middleware
-- [ ] **Gate:** Tanmay can build Login/Dashboard against your stubs *(stubs live on port 8420, awaiting his confirmation in TEAM_PROGRESS.md)*
+- [x] **Gate:** Tanmay can build Login/Dashboard against your stubs *(MIMI shipped both, verified against live stubs)*
 
 ## Phase 1 — Data Layer + Auth (28–29 Aug)
 - [x] SQLCipher enabled; migration system set up *(deviation: sqlx has no SQLCipher support — shipped plain SQLite + sqlx migrations now; SQLCipher needs a custom libsqlite3 build, tracked as a hardening-pass item)*
@@ -22,9 +22,9 @@ Hardware note: GPU lives on this machine; everything runs server-side.
 - [x] Auth middleware: role guard implementing the RBAC matrix (PRD §5.2) *(`Authed` extractor + `require(&[Role])` helper)*
 - [x] Real `/auth/login` + `/auth/logout`; audit log entries on login/logout
 - [x] Real CRUD: `/users`, `/cases` *(cases role-scoped: admins/supervisors see all, others see owned/assigned only; case stats computed from events/alerts/entities tables)*
-- [ ] **Gate:** Tanmay ships real login screen
+- [x] **Gate:** Tanmay ships real login screen *(shipped with distinct 401/423/network-error handling + secure-store sessions; real auth now live behind it)*
 
-**Smoke-tested:** wrong-pw→401, good login→JWT, no-token→401, admin create user, analyst blocked from /users (403), 5-fail lockout→423.
+**Smoke-tested:** wrong-pw→401, good login→JWT, no-token→401, admin create user, analyst blocked from /users (403), 5-fail lockout→423. **Interop fixes from MIMI's review:** UPPERCASE enum wire values (CDR/PHONE/CALL), dotted WS tags (`alert.created`), bare SSE chat frames, numeric `Report.version`, `AuditEntry` added to contract.
 
 ## Phase 2 — Ingestion Engine (30 Aug – 1 Sep)
 - [ ] Universal CSV parser: delimiter sniffing, encoding detection, column-order agnostic

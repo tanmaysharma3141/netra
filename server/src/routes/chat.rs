@@ -42,21 +42,17 @@ pub async fn ask(
             let _ = &state;
             async move {
                 tokio::time::sleep(Duration::from_millis(60)).await;
-                Ok(Event::default().data(
-                    serde_json::to_string(&ChatFrame::Delta { delta: chunk }).unwrap(),
-                ))
+                Ok(Event::default()
+                    .data(serde_json::to_string(&ChatFrame::delta(chunk)).unwrap()))
             }
         })
         .chain(stream::once(async move {
             Ok(Event::default().data(
-                serde_json::to_string(&ChatFrame::Sources {
-                    sources: event_ids,
-                })
-                .unwrap(),
+                serde_json::to_string(&ChatFrame::sources(event_ids)).unwrap(),
             ))
         }))
         .chain(stream::once(async {
-            Ok(Event::default().data(serde_json::to_string(&ChatFrame::Done).unwrap()))
+            Ok(Event::default().data(serde_json::to_string(&ChatFrame::done()).unwrap()))
         }));
 
     Sse::new(s).keep_alive(KeepAlive::default())

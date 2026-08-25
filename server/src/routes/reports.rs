@@ -13,7 +13,7 @@ pub async fn generate(State(_state): State<AppState>, Path(case_id): Path<Uuid>)
     Json(Report {
         id: Uuid::new_v4(),
         case_id,
-        version: "v0.1-draft".into(),
+        version: 1,
         ..stub_data::demo_report()
     })
 }

@@ -111,6 +111,15 @@ export interface Report {
   summary_md: string; // executive summary as markdown
 }
 
+export interface AuditEntry {
+  id: string;
+  user_id: string;
+  case_id: string | null;
+  action: string; // e.g. "auth.login", "ingest.completed", "case.created"
+  detail: Record<string, unknown>;
+  at: string; // ISO8601 UTC
+}
+
 export interface ApiError {
   error: { code: string; message: string };
 }

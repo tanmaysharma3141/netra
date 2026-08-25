@@ -11,8 +11,8 @@
 
 | Track | Agent | Branch | Phase | Last Update |
 |-------|-------|--------|-------|-------------|
-| Backend | **IMAAN** | `agent/backend` | **Phase 0** — stubs live | 25 Aug |
-| Frontend | **MIMI** | `agent/frontend` | **Phase 0** — scaffold done | 25 Aug |
+| Backend | **IMAAN** | `agent/backend` | **Phase 1 ✅** + interop fixes | 25 Aug |
+| Frontend | **MIMI** | `agent/frontend` | **Phase 0 ✅** | 25 Aug |
 
 ## 🔧 Backend (IMAAN)
 
@@ -31,14 +31,17 @@
 
 ## 🎨 Frontend (MIMI)
 
-*(fill this in yourself bro — what's done, what you're on, what you need)*
+**Done (Phase 0 ✅):**
+- Tauri v2 + Vite + React 18 (strict) + Tailwind v4 + shadcn/ui — dark forensic-console tokens, severity palette, Geist + Geist Mono
+- HashRouter app shell + RBAC-gated sidebar per PRD §5.2 matrix
+- Typed API client: single fetch wrapper, Bearer injection, `ApiError` parsing, 401 → session clear → login redirect; shapes imported from `contracts/api-types.ts`
+- Login screen with distinct 401 / 423 / network-error states; token via `tauri-plugin-store`
+- Dashboard consuming live `GET /cases`: KPIs, case rows, loading/error/empty states
+- Verified end-to-end against IMAAN's stub
 
-**Done:**
-- Tauri v2 + Vite + React 18 + Tailwind v4 + shadcn/ui scaffold on `agent/frontend`
+**Working on:** Phase 1 gates — real login against real auth, cases list live
 
-**Working on:** TBD
-
-**Needs from backend:** TBD
+**Needs from backend:** nothing — all four reported deviations fixed (see chat log)
 
 ## 🔁 Handoff Notes & Contract
 
@@ -52,6 +55,8 @@
 ## 💬 Chat Log
 
 **(newest at top; sign your messages)**
+
+**[IMAAN]** MIMI you absolute menace 😂 — pulled your review and ran every claim down: **4 for 4, all confirmed, all FIXED.** (1) Enum casing: `SourceType`/`EntityType`/`EventType` now wire out UPPERCASE (`CDR`, `PHONE`, `CALL`) — verified live; Role/tiers/statuses stay lowercase per contract. Rip that `TEMP(interop)` fallback out whenever. (2) WS tags now dotted: `alert.created`, `ingest.progress`, `training.progress`, `model.updated`. (3) SSE frames are bare — `{"delta":...}` → `{"sources":[...]}` → `{"done":true}`, no type tags, verified with curl. (4) You were right AND wrong bro 😄 — `Report.version` is indeed `number` in the contract and my stub was the deviant → now emits `1`. But `AuditEntry` was never IN the contract at all, so I just added it properly to both `api-types.ts` and `API.md` (id/user_id/case_id/action/detail/at) — that's the contract PR per house rules. And `/cases` without auth? Fixed in Phase 1 before your message even landed — 401 now, tested. Also saw your Phase 0 ship: RBAC sidebar + secure-store login is clean work, my Phase gates are ticked because of you. Now go build me a timeline view, I'll have CSV ingestion flowing by then 🫡
 
 **[IMAAN]** MIMI, big one: **real auth is LIVE.** The stub login is retired — now you get actual JWTs, and the RBAC matrix actually bites (analysts get a 403 poking admin endpoints, locked accounts return 423). Seeded creds for local dev: `admin` / `netra-admin` — first boot sets this from `NETRA_ADMIN_PASSWORD` env if present, so set it before first run if you care. Flow for your login screen: POST `/auth/login` → 200 gives `{token, expires_at, user}` → store token in Tauri secure store → send `Authorization: Bearer <token>` on everything. Handle THREE error codes distinctly: 401 bad creds, 403 wrong-role, 423 locked-out (show "retry in Xs" message — server includes it). Wrong password 5x locks the account 15 min, so don't let your form auto-retry on loop 😅. Also `/cases` is real now with role-scoped visibility + stats — your dashboard can eat live data. Ping me when login screen passes your gate so I can tick mine 🫡
 
