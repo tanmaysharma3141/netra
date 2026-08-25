@@ -1,0 +1,69 @@
+pub mod alerts;
+pub mod auth;
+pub mod cases;
+pub mod chat;
+pub mod entities;
+pub mod events;
+pub mod geo;
+pub mod health;
+pub mod ingest;
+pub mod reports;
+pub mod settings;
+pub mod users;
+pub mod ws;
+
+use axum::routing::{get, patch, post};
+use axum::Router;
+
+use crate::state::AppState;
+
+pub fn router(state: AppState) -> Router {
+    let api = Router::new()
+        .route("/auth/login", post(auth::login))
+        .route("/auth/logout", post(auth::logout))
+        .route("/users", get(users::list).post(users::create))
+        .route(
+            "/users/{id}",
+            patch(users::update).delete(users::deactivate),
+        )
+        .route("/cases", get(cases::list).post(cases::create))
+        .route(
+            "/cases/{id}",
+            get(cases::detail).patch(cases::update),
+        )
+        .route("/cases/{id}/audit", get(cases::audit))
+        .route("/cases/{id}/events", get(events::list))
+        .route("/events/{id}", get(events::detail))
+        .route("/cases/{id}/entities", get(entities::list))
+        .route("/cases/{id}/graph", get(entities::graph))
+        .route(
+            "/entities/{id}/profile",
+            get(entities::profile),
+        )
+        .route("/entities/{id}", patch(entities::annotate))
+        .route("/alerts", get(alerts::list))
+        .route("/alerts/{id}", get(alerts::detail))
+        .route("/alerts/{id}/status", patch(alerts::update_status))
+        .route("/cases/{id}/ingest", post(ingest::upload))
+        .route("/ingest/jobs/{id}", get(ingest::job))
+        .route("/cases/{id}/movements", get(crate::routes::geo::movements))
+        .route("/cases/{id}/chat", post(chat::ask))
+        .route("/cases/{id}/reports", post(reports::generate).get(reports::list))
+        .route("/reports/{id}", get(reports::detail))
+        .route("/reports/{id}/export", get(reports::export_pdf))
+        .route("/reports/{id}/approve", patch(reports::approve))
+        .route(
+            "/settings/webhooks",
+            get(settings::get_webhooks).patch(settings::update_webhooks),
+        )
+        .route("/models", get(settings::models))
+        .route("/models/promote", post(settings::promote_model))
+        .route("/training/trigger", post(settings::trigger_training))
+        .route("/training/queue", get(settings::queue));
+
+    Router::new()
+        .route("/health", get(health::health))
+        .route("/ws", get(ws::handler))
+        .nest("/api/v1", api)
+        .with_state(state)
+}

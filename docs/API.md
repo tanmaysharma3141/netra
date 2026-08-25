@@ -44,9 +44,14 @@ Types referenced below live in `contracts/api-types.ts` (single source of truth)
 | POST | /cases | Investigator/Admin only |
 | GET | /cases/:id | Case detail + stats |
 | PATCH | /cases/:id | Update title/status/tags/assignees |
-| GET | /cases/:id/audit | Audit log entries for case |
+| GET | /cases/:id/audit | Audit log entries for case → `AuditEntry[]` (max 200, newest first) |
 
 Case object includes computed stats: event counts per source type, alert counts by severity, entity count.
+
+**AuditEntry** (also in `contracts/api-types.ts`):
+```json
+{ "id": "uuid", "user_id": "uuid", "case_id": "uuid|null", "action": "case.created", "detail": {}, "at": "ISO8601" }
+```
 
 ## Events & Timeline
 

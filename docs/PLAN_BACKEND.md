@@ -7,22 +7,24 @@ Hardware note: GPU lives on this machine; everything runs server-side.
 ---
 
 ## Phase 0 — Scaffold + Contract Stubs (26–27 Aug)
-- [ ] Create repo structure: `server/` (Rust), `client/` (Tanmay's Tauri app), `contracts/`, `docs/`
-- [ ] `cargo new server` with Axum + tokio + sqlx (SQLite) + tower-http (CORS for dev)
-- [ ] Serve **stub routes** for every endpoint in `docs/API.md` returning hardcoded JSON shaped by `contracts/api-types.ts`
-- [ ] Wire WebSocket `/ws` endpoint that accepts subscribe frames and echoes a fake `alert.created` every 30s
-- [ ] Health check route + basic request logging middleware
-- [ ] **Gate:** Tanmay can build Login/Dashboard against your stubs
+- [x] Create repo structure: `server/` (Rust), `client/` (Tanmay's Tauri app), `contracts/`, `docs/`
+- [x] `cargo new server` with Axum + tokio + sqlx (SQLite) + tower-http (CORS for dev) *(sqlx deferred to Phase 1)*
+- [x] Serve **stub routes** for every endpoint in `docs/API.md` returning hardcoded JSON shaped by `contracts/api-types.ts`
+- [x] Wire WebSocket `/ws` endpoint that accepts subscribe frames and echoes a fake `alert.created` every 30s *(plus ingest.progress + training.progress emitters)*
+- [x] Health check route + basic request logging middleware
+- [x] **Gate:** Tanmay can build Login/Dashboard against your stubs *(MIMI shipped both, verified against live stubs)*
 
 ## Phase 1 — Data Layer + Auth (28–29 Aug)
-- [ ] SQLCipher enabled; migration system set up
-- [ ] Migrations: `users`, `cases`, `events`, `entities`, `entity_edges`, `alerts`, `audit_log`, `ingest_jobs`, `feedback_queue`
-- [ ] Seed script: admin user + demo case
-- [ ] Auth service: bcrypt hashing, JWT issue/verify, lockout after 5 failures
-- [ ] Auth middleware: role guard implementing the RBAC matrix (PRD §5.2)
-- [ ] Real `/auth/login` + `/auth/logout`; audit log entries on login/logout
-- [ ] Real CRUD: `/users`, `/cases`
-- [ ] **Gate:** Tanmay ships real login screen
+- [x] SQLCipher enabled; migration system set up *(deviation: sqlx has no SQLCipher support — shipped plain SQLite + sqlx migrations now; SQLCipher needs a custom libsqlite3 build, tracked as a hardening-pass item)*
+- [x] Migrations: `users`, `cases`, `events`, `entities`, `entity_edges`, `alerts`, `audit_log`, `ingest_jobs`, `feedback_queue`
+- [x] Seed script: admin user + demo case *(runs at startup; admin password via `NETRA_ADMIN_PASSWORD` env)*
+- [x] Auth service: bcrypt hashing, JWT issue/verify, lockout after 5 failures *(15-min lock, 8h tokens)*
+- [x] Auth middleware: role guard implementing the RBAC matrix (PRD §5.2) *(`Authed` extractor + `require(&[Role])` helper)*
+- [x] Real `/auth/login` + `/auth/logout`; audit log entries on login/logout
+- [x] Real CRUD: `/users`, `/cases` *(cases role-scoped: admins/supervisors see all, others see owned/assigned only; case stats computed from events/alerts/entities tables)*
+- [x] **Gate:** Tanmay ships real login screen *(shipped with distinct 401/423/network-error handling + secure-store sessions; real auth now live behind it)*
+
+**Smoke-tested:** wrong-pw→401, good login→JWT, no-token→401, admin create user, analyst blocked from /users (403), 5-fail lockout→423. **Interop fixes from MIMI's review:** UPPERCASE enum wire values (CDR/PHONE/CALL), dotted WS tags (`alert.created`), bare SSE chat frames, numeric `Report.version`, `AuditEntry` added to contract.
 
 ## Phase 2 — Ingestion Engine (30 Aug – 1 Sep)
 - [ ] Universal CSV parser: delimiter sniffing, encoding detection, column-order agnostic
