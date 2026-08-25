@@ -50,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await authApi.login(username, password)
     await setSession(res.token, res.user)
     setUser(res.user)
+    setStatus("authenticated")
   }, [])
 
   const signOut = useCallback(async () => {
@@ -60,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     await clearSession()
     setUser(null)
+    setStatus("unauthenticated")
   }, [])
 
   const can = useCallback(
