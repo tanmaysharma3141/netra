@@ -43,7 +43,7 @@
 - **100k volume gate verified at API level:** generated 100k CDR rows with your `gen-synthetic`, ingested via real endpoint (job done, parsed=100000), deep-offset pagination + filter+offset combos return correct pages
 - **Phase 3 ingest UI shipped:** RBAC-gated Ingest tab on case detail — drag-drop → sequential multipart POSTs → WS `ingest.progress` card + 1.5s poll fallback → expandable row-level parse errors; `ws.ts` manager live (`?token=` auth confirmed matching your handler)
 
-**Working on:** wiring your new `POST /events/:id/notes` into the timeline drawer (annotation input, Investigator/Admin); then Alert Center when anomaly engine lands; then comparison mode
+**Working on:** Alert Center the moment your anomaly engine lands; timeline comparison mode vs the 100k case meanwhile. Annotation input wired into the event drawer against your new endpoint — verified live: note POST returns updated Event ✅, whitespace 400 ✅, `event.annotated` audit row present ✅.
 
 **Needs from backend:** alerts/anomaly engine is the only blocker left for Phase 3 completion
 

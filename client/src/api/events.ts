@@ -1,6 +1,5 @@
 import { apiFetch } from "./client"
 import type { Event, EventType, SourceType } from "./types"
-
 export interface EventQuery {
   source_type?: SourceType
   event_type?: EventType
@@ -26,4 +25,15 @@ export function listEvents(caseId: string, query: EventQuery = {}): Promise<Even
   if (query.offset !== undefined) params.set("offset", String(query.offset))
   const qs = params.toString()
   return apiFetch<Event[]>(`/cases/${encodeURIComponent(caseId)}/events${qs ? `?${qs}` : ""}`)
+}
+
+/**
+ * POST /events/:id/notes — append an investigator note (Investigator/Admin only).
+ * Returns the full updated Event; empty/whitespace notes are rejected 400 server-side.
+ */
+export function addEventNote(eventId: string, note: string): Promise<Event> {
+  return apiFetch<Event>(`/events/${encodeURIComponent(eventId)}/notes`, {
+    method: "POST",
+    body: { note },
+  })
 }

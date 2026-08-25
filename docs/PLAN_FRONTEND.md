@@ -27,7 +27,7 @@ You develop against Chirag's stub server until each phase gate flips to real dat
 - [x] Unified timeline view from `/cases/:id/events`: virtualized list (`@tanstack/react-virtual`, dynamic row measurement; components/timeline/timeline-panel.tsx)
 - [x] Filters bar: source type, event type, date range, entity search — all four contract params verified live vs server
 - [x] Collapsible event groups (cluster events within configurable window) — flat/5m/15m/1h/24h toggles, per-cluster collapse
-- [ ] Event detail drawer: full metadata + raw record viewer ✅; **annotation input blocked** — no `PATCH /events/:id` in contract and `PATCH /entities/:id` body shape unspecified (flagged to IMAAN); drawer shows existing notes read-only meanwhile
+- [x] Event detail drawer: full metadata + raw record viewer + annotation input (`POST /events/:id/notes` per IMAAN's contract update; RBAC-gated to Investigator/Admin via `data.upload`; cache invalidation + optimistic drawer update)
 - [x] Pagination/infinite scroll honoring limit/offset contract (200/page, auto-fetch near viewport end)
 - [ ] Side-by-side suspect comparison mode (two filtered timelines) — next slice
 - [ ] **Gate:** scroll through a 100k-event synthetic case without jank — awaiting IMAAN's synthetic data generator

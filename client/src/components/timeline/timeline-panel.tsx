@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
-import { useInfiniteQuery } from "@tanstack/react-query"
-import { useVirtualizer, type VirtualItem } from "@tanstack/react-virtual"
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useVirtualizer } from "@tanstack/react-virtual"
+import { toast } from "sonner"
 import { ChevronDown, ChevronRight, ListTree, MapPin, RefreshCw, Search } from "lucide-react"
-import { listEvents, type EventQuery } from "@/api/events"
+import { listEvents, addEventNote, type EventQuery } from "@/api/events"
 import type { Event, EventType, SourceType } from "@/api/types"
 import { SOURCE_LABELS, sourceBadgeClass } from "@/lib/severity"
 import { EVENT_TYPES, SOURCE_TYPES } from "@/lib/timeline-constants"
+import { useAuth } from "@/auth/AuthContext"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Sheet,
   SheetContent,
@@ -81,9 +84,8 @@ export function TimelinePanel({ caseId }: { caseId: string }) {
   const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(new Set())
   const [selected, setSelected] = useState<Event | null>(null)
 
-  const queryKey = useMemo(() => ["events", caseId, applied], [caseId, applied])
   const eventsQuery = useInfiniteQuery({
-    queryKey,
+    queryKey: useMemo(() => ["events", caseId, applied], [caseId, applied]),
     queryFn: ({ pageParam }) =>
       listEvents(caseId, { ...filtersToQuery(applied), limit: PAGE_LIMIT, offset: pageParam }),
     initialPageParam: 0,
@@ -303,7 +305,7 @@ export function TimelinePanel({ caseId }: { caseId: string }) {
           </div>
           <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto rounded-sm border">
             <div style={{ height: virtualizer.getTotalSize(), position: "relative", width: "100%" }}>
-              {virtualizer.getVirtualItems().map((vItem: VirtualItem) => {
+              {virtualizer.getVirtualItems().map((vItem) => {
                 const row = rows[vItem.index]
                 if (!row) return null
                 const style = {
@@ -389,7 +391,11 @@ export function TimelinePanel({ caseId }: { caseId: string }) {
         </>
       )}
 
-      <EventDrawer event={selected} onClose={() => setSelected(null)} />
+      <EventDrawer
+        event={selected}
+        onClose={() => setSelected(null)}
+        onEventUpdated={(updated) => setSelected(updated)}
+      />
     </div>
   )
 }
@@ -409,7 +415,42 @@ function fmtTime(iso: string): string {
   })
 }
 
-function EventDrawer({ event, onClose }: { event: Event | null; onClose: () => void }) {
+function EventDrawer({
+  event,
+  onClose,
+  onEventUpdated,
+}: {
+  event: Event | null
+  onClose: () => void
+  onEventUpdated: (updated: Event) => void
+}) {
+  const queryClient = useQueryClient()
+  const { can } = useAuth()
+  const [note, setNote] = useState("")
+
+  const noteMutation = useMutation({
+    mutationFn: () => addEventNote(event!.id, note.trim()),
+    onSuccess: (updated) => {
+      toast.success("Note added")
+      setNote("")
+      onEventUpdated(updated)
+      void queryClient.invalidateQueries({ queryKey: ["events"] })
+    },
+    onError: (err) => {
+      toast.error("Could not add note", {
+        description: err instanceof Error ? err.message : "Unexpected error.",
+      })
+    },
+  })
+
+  const canAnnotate = can("data.upload") // admin + investigator — server enforces the real check
+
+  function submitNote(formEvent: FormEvent<HTMLFormElement>) {
+    formEvent.preventDefault()
+    if (!event || !note.trim() || noteMutation.isPending) return
+    noteMutation.mutate()
+  }
+
   return (
     <Sheet open={event !== null} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
@@ -441,20 +482,41 @@ function EventDrawer({ event, onClose }: { event: Event | null; onClose: () => v
               ) : null}
             </dl>
 
-            {event.notes.length > 0 ? (
-              <div className="mt-4">
-                <p className="mb-1.5 font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
-                  Notes
-                </p>
-                <ul className="space-y-1.5">
-                  {event.notes.map((note, i) => (
+            <div className="mt-4">
+              <p className="mb-1.5 font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
+                Notes
+              </p>
+              {event.notes.length > 0 ? (
+                <ul className="mb-3 space-y-1.5">
+                  {event.notes.map((noteItem, i) => (
                     <li key={i} className="border-border rounded-sm border-l-2 pl-2.5 text-sm">
-                      {note}
+                      {noteItem}
                     </li>
                   ))}
                 </ul>
-              </div>
-            ) : null}
+              ) : (
+                <p className="text-muted-foreground mb-3 text-xs">No notes yet.</p>
+              )}
+              {canAnnotate ? (
+                <form onSubmit={(e) => void submitNote(e)} className="space-y-2">
+                  <Textarea
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                    placeholder="Add an investigator note…"
+                    rows={2}
+                    aria-label="New note"
+                  />
+                  <Button
+                    type="submit"
+                    size="sm"
+                    variant="secondary"
+                    disabled={!note.trim() || noteMutation.isPending}
+                  >
+                    {noteMutation.isPending ? "Saving…" : "Add note"}
+                  </Button>
+                </form>
+              ) : null}
+            </div>
 
             <div className="mt-4">
               <p className="mb-1.5 font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
