@@ -1,5 +1,4 @@
 use axum::extract::FromRequestParts;
-use axum::extract::State;
 use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
 use axum::http::StatusCode;
@@ -57,6 +56,10 @@ fn unauthorized(message: &str) -> Response {
     ApiError::new("unauthorized", message).into_response(StatusCode::UNAUTHORIZED)
 }
 
+pub(crate) fn unauthorized_response(message: &str) -> Response {
+    unauthorized(message)
+}
+
 pub struct Authed {
     pub id: String,
     pub username: String,
@@ -93,28 +96,24 @@ impl FromRequestParts<AppState> for Authed {
         let claims =
             verify_token(&token, &state.jwt_secret).ok_or_else(|| unauthorized("invalid token"))?;
 
-        let active_row: Option<i64> =
-            sqlx::query_scalar("SELECT active FROM users WHERE id = ?1")
+        let row: Option<(String, String, i64)> =
+            sqlx::query_as("SELECT username, role, active FROM users WHERE id = ?1")
                 .bind(&claims.sub)
                 .fetch_optional(&state.pool)
                 .await
-                .ok()
-                .flatten();
-        match active_row {
-            Some(active) if active != 0 => {}
-            _ => return Err(unauthorized("user inactive or removed")),
-        }
+                .map_err(|_| unauthorized("lookup failed"))?;
 
-        let username: String = sqlx::query_scalar("SELECT username FROM users WHERE id = ?1")
-            .bind(&claims.sub)
-            .fetch_one(&state.pool)
-            .await
-            .unwrap_or_default();
+        let Some((username, role, active)) = row else {
+            return Err(unauthorized("user removed"));
+        };
+        if active == 0 {
+            return Err(unauthorized("user inactive"));
+        }
 
         Ok(Authed {
             id: claims.sub,
             username,
-            role: claims.role.parse().map_err(|_| unauthorized("bad role claim"))?,
+            role: role.parse().map_err(|_| unauthorized("bad role"))?,
         })
     }
 }

@@ -1,13 +1,48 @@
 use futures_util::{SinkExt, StreamExt};
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::extract::State;
+use axum::extract::{Query, State};
+use axum::http::header::AUTHORIZATION;
+use axum::http::{HeaderMap};
 use axum::response::Response;
+use serde::Deserialize;
 
+use crate::auth;
 use crate::state::AppState;
 
-pub async fn handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
-    ws.on_upgrade(move |socket| handle_socket(socket, state))
+#[derive(Debug, Deserialize)]
+pub struct WsQuery {
+    pub token: Option<String>,
+}
+
+pub async fn handler(
+    ws: WebSocketUpgrade,
+    State(state): State<AppState>,
+    Query(q): Query<WsQuery>,
+    headers: HeaderMap,
+) -> Result<Response, Response> {
+    let bearer = headers
+        .get(AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .map(str::to_string);
+
+    let token = bearer
+        .or(q.token)
+        .ok_or_else(|| auth::unauthorized_response("missing token"))?;
+    let claims = auth::verify_token(&token, &state.jwt_secret)
+        .ok_or_else(|| auth::unauthorized_response("invalid token"))?;
+
+    let active: Option<i64> = sqlx::query_scalar("SELECT active FROM users WHERE id = ?1")
+        .bind(&claims.sub)
+        .fetch_optional(&state.pool)
+        .await
+        .unwrap_or(None);
+    if active.unwrap_or(0) == 0 {
+        return Err(auth::unauthorized_response("user inactive"));
+    }
+
+    Ok(ws.on_upgrade(move |socket| handle_socket(socket, state)))
 }
 
 async fn handle_socket(socket: WebSocket, state: AppState) {
