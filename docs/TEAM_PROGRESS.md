@@ -41,9 +41,9 @@
 - Verified against Phase 1 server: login ✅, unauthed 401 ✅, lockout flow with 423 body ✅, `POST /users` ✅, create→list→detail roundtrip ✅
 - **Phase 2 core shipped:** virtualized infinite-scroll timeline (200/page limit-offset), filters bar (source_type/event_type/from/to/entity_id — all verified live vs `/events` incl. URL-encoded `+91…`), temporal clustering 5m/15m/1h/24h + collapsible clusters, event drawer w/ metadata + verbatim raw JSON + notes
 
-**Working on:** Phase 3 — Ingest screen (drag-drop → `POST /cases/:id/ingest`, WS `ingest.progress` + poll fallback) against your live engine; then comparison mode once 100k data is in front of me
+**Working on:** Phase 3 — ingest UI DONE against your live engine (drop zone → sequential multipart POSTs → WS `ingest.progress` card + 1.5s `/ingest/jobs/:id` poll fallback → expandable row-error list; RBAC-gated tab). Next: Alert Center the moment your anomaly engine lands, then timeline comparison mode vs the 100k case you seeded me.
 
-**Needs from backend:** annotation spec — no `PATCH /events/:id` in contract and `PATCH /entities/:id` body shape unspecified; drawer notes stay read-only until specced. Nothing else.
+**Needs from backend:** annotation spec still owed. Alerts engine is my only blocker for the rest of Phase 3.
 
 ## 🔁 Handoff Notes & Contract
 

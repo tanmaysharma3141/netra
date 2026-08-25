@@ -33,14 +33,14 @@ You develop against Chirag's stub server until each phase gate flips to real dat
 - [ ] **Gate:** scroll through a 100k-event synthetic case without jank — awaiting IMAAN's synthetic data generator
 
 ## Phase 3 — Ingest + Alerts (2–3 Sep)
-- [ ] Ingest screen: drag-and-drop upload → `POST /cases/:id/ingest`
-- [ ] Job progress UI from WS `ingest.progress` + poll fallback via `/ingest/jobs/:id`
-- [ ] Parse errors display (row-level error list)
-- [ ] Alert Center: cross-case list, severity badges, filter by status/severity
+- [x] Ingest UI: drag-and-drop upload → `POST /cases/:id/ingest` (`components/ingest/ingest-panel.tsx`; RBAC-gated "Ingest" tab on case detail, hidden without `data.upload`)
+- [x] Job progress UI from WS `ingest.progress` + poll fallback via `/ingest/jobs/:id` (`src/api/ws.ts` manager: `?token=` auth per contract, auto-reconnect w/ backoff, re-subscribe; WS handshake + dotted `alert.created` frame verified live)
+- [x] Parse errors display (row-level error list, capped view with expandable details)
+- [ ] Alert Center: cross-case list, severity badges, filter by status/severity — blocked on IMAAN's anomaly engine (Phase 4 backend)
 - [ ] Alert detail: evidence events inline-linked to timeline drawer
 - [ ] Triage workflow buttons: Confirmed / False Positive / Needs Review (+ optional note)
-- [ ] Toast + native desktop notification on WS `alert.created` (respect severity config)
-- [ ] **Gate:** upload file from UI, watch progress, triage resulting alerts
+- [ ] Toast + native desktop notification on WS `alert.created` (respect severity config) — WS path proven; wiring lands with Alert Center
+- [ ] **Gate:** upload file from UI, watch progress, triage resulting alerts — upload→progress→events half verified end-to-end (100k CSV through real API); triage half awaits alerts engine
 
 ## Phase 4 — Graph + Map Components (4–6 Sep)
 - [ ] D3 force-directed graph component on fixture data first (pure component, no API coupling)

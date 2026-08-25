@@ -17,6 +17,8 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TimelinePanel } from "@/components/timeline/timeline-panel"
+import { IngestPanel } from "@/components/ingest/ingest-panel"
+import { useAuth } from "@/auth/AuthContext"
 
 interface TabDef {
   value: string
@@ -29,13 +31,16 @@ const TABS: readonly TabDef[] = [
   { value: "graph", label: "Graph", phase: "PHASE 4 · GRAPH COMPONENT" },
   { value: "map", label: "Map", phase: "PHASE 4 · MAP COMPONENT" },
   { value: "alerts", label: "Alerts", phase: "PHASE 3 · ALERTS" },
+  { value: "ingest", label: "Ingest", phase: "" },
   { value: "reports", label: "Reports", phase: "PHASE 5 · REPORTS" },
   { value: "chat", label: "Chat", phase: "PHASE 5 · COPILOT CHAT" },
 ]
 
 export function CaseDetailScreen() {
   const { id = "" } = useParams()
+  const { can } = useAuth()
   const caseQuery = useQuery({ queryKey: ["case", id], queryFn: () => getCase(id) })
+  const visibleTabs = TABS.filter((tab) => tab.value !== "ingest" || can("data.upload"))
 
   if (caseQuery.isPending) {
     return (
@@ -115,18 +120,20 @@ export function CaseDetailScreen() {
 
       <Tabs defaultValue="timeline" className="mt-6">
         <TabsList className="w-full justify-start overflow-x-auto">
-          {TABS.map((tab) => (
+          {visibleTabs.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value}>
               {tab.label}
             </TabsTrigger>
           ))}
         </TabsList>
-        {TABS.map((tab) => (
+        {visibleTabs.map((tab) => (
           <TabsContent key={tab.value} value={tab.value} className="mt-4">
             {tab.value === "timeline" ? (
               <div className="h-[calc(100vh-22rem)] min-h-96">
                 <TimelinePanel caseId={kase.id} />
               </div>
+            ) : tab.value === "ingest" ? (
+              <IngestPanel caseId={kase.id} />
             ) : (
               <Card className="border-dashed">
                 <CardContent className="flex flex-col items-center justify-center py-14 text-center">
