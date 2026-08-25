@@ -7,8 +7,8 @@ You develop against Chirag's stub server until each phase gate flips to real dat
 ---
 
 ## Phase 0 — App Shell + Login (26–27 Aug)
-- [ ] Tauri v2 + Vite + React + TS scaffold in `client/`
-- [ ] Tailwind CSS + shadcn/ui initialized (dark forensic-console theme)
+- [x] Tauri v2 + Vite + React + TS scaffold in `client/` (React 18.3, strict mode, `@/` + `@contracts/` aliases)
+- [ ] Tailwind CSS + shadcn/ui initialized (dark forensic-console theme) — shadcn initialized; theme tokens pending
 - [ ] React Router: layout with sidebar nav (Dashboard, Cases, Alerts, Settings, Audit)
 - [ ] API client module: fetch wrapper with JWT header injection + 401 redirect to login
 - [ ] Login screen against stub `/auth/login`; store token in Tauri secure store
