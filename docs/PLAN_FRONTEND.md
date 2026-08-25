@@ -24,13 +24,13 @@ You develop against Chirag's stub server until each phase gate flips to real dat
 - [x] **Gate:** create a case from UI and see it in the list — verified vs real backend (`POST /cases` → `93f7ab75…` visible in `GET /cases`, detail loads; manual mouse-through pending on dev machine, all HTTP paths proven)
 
 ## Phase 2 — Timeline (30 Aug – 1 Sep)
-- [ ] Unified timeline view from `/cases/:id/events`: virtualized list (can be long)
-- [ ] Filters bar: source type, event type, date range, entity search
-- [ ] Collapsible event groups (cluster events within configurable window)
-- [ ] Event detail drawer: full metadata + raw record viewer + annotation input (`PATCH /entities/:id` notes)
-- [ ] Pagination/infinite scroll honoring limit/offset contract
-- [ ] Side-by-side suspect comparison mode (two filtered timelines)
-- [ ] **Gate:** scroll through a 100k-event synthetic case without jank
+- [x] Unified timeline view from `/cases/:id/events`: virtualized list (`@tanstack/react-virtual`, dynamic row measurement; components/timeline/timeline-panel.tsx)
+- [x] Filters bar: source type, event type, date range, entity search — all four contract params verified live vs server
+- [x] Collapsible event groups (cluster events within configurable window) — flat/5m/15m/1h/24h toggles, per-cluster collapse
+- [ ] Event detail drawer: full metadata + raw record viewer ✅; **annotation input blocked** — no `PATCH /events/:id` in contract and `PATCH /entities/:id` body shape unspecified (flagged to IMAAN); drawer shows existing notes read-only meanwhile
+- [x] Pagination/infinite scroll honoring limit/offset contract (200/page, auto-fetch near viewport end)
+- [ ] Side-by-side suspect comparison mode (two filtered timelines) — next slice
+- [ ] **Gate:** scroll through a 100k-event synthetic case without jank — awaiting IMAAN's synthetic data generator
 
 ## Phase 3 — Ingest + Alerts (2–3 Sep)
 - [ ] Ingest screen: drag-and-drop upload → `POST /cases/:id/ingest`

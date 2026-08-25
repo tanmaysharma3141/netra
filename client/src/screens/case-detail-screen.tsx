@@ -16,6 +16,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { TimelinePanel } from "@/components/timeline/timeline-panel"
 
 interface TabDef {
   value: string
@@ -122,14 +123,20 @@ export function CaseDetailScreen() {
         </TabsList>
         {TABS.map((tab) => (
           <TabsContent key={tab.value} value={tab.value} className="mt-4">
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-14 text-center">
-                <p className="font-mono text-sm">{tab.phase}</p>
-                <p className="mt-1 max-w-md text-sm text-muted-foreground">
-                  This tab ships in a later phase of docs/PLAN_FRONTEND.md.
-                </p>
-              </CardContent>
-            </Card>
+            {tab.value === "timeline" ? (
+              <div className="h-[calc(100vh-22rem)] min-h-96">
+                <TimelinePanel caseId={kase.id} />
+              </div>
+            ) : (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-14 text-center">
+                  <p className="font-mono text-sm">{tab.phase}</p>
+                  <p className="mt-1 max-w-md text-sm text-muted-foreground">
+                    This tab ships in a later phase of docs/PLAN_FRONTEND.md.
+                  </p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         ))}
       </Tabs>

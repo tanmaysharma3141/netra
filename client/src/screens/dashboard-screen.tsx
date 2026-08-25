@@ -167,7 +167,7 @@ function CaseRow({ kase }: { kase: Case }) {
           {high > 0 ? <Badge className={severityBadgeClass.high}>{high} high</Badge> : null}
           <span className="font-mono text-xs tabular-nums text-muted-foreground">
             {Object.values(kase.stats.events_by_source).reduce((a, b) => a + b, 0).toLocaleString("en-IN")} events ·{" "}
-            {statLookup(kase.stats, "entity_count").toLocaleString("en-IN")} entities
+            {kase.stats.entity_count.toLocaleString("en-IN")} entities
           </span>
           <span className="font-mono text-xs text-muted-foreground">{kase.id.slice(0, 8)}</span>
         </div>
@@ -190,9 +190,7 @@ function aggregate(cases: Case[]): Totals {
   }
   for (const c of cases) {
     for (const source of SOURCE_ORDER) {
-      // TEMP(interop): stub server emits lowercase enum keys ("cdr"); contract says "CDR".
-      // Fallback removed once backend serializes contract-literal enum values — see TEAM_PROGRESS.md.
-      totals.events_by_source[source] += statLookup(c.stats.events_by_source, source)
+      totals.events_by_source[source] += c.stats.events_by_source[source] ?? 0
     }
     for (const severity of SEVERITY_ORDER) {
       totals.alerts_by_severity[severity] += c.stats.alerts_by_severity[severity] ?? 0
@@ -200,13 +198,4 @@ function aggregate(cases: Case[]): Totals {
     totals.entity_count += c.stats.entity_count
   }
   return totals
-}
-
-function statLookup(record: unknown, key: string): number {
-  if (typeof record !== "object" || record === null) return 0
-  const map = record as Record<string, unknown>
-  const direct = map[key]
-  if (typeof direct === "number") return direct
-  const lowered = map[key.toLowerCase()]
-  return typeof lowered === "number" ? lowered : 0
 }
