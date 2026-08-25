@@ -27,15 +27,18 @@ Hardware note: GPU lives on this machine; everything runs server-side.
 **Smoke-tested:** wrong-pw→401, good login→JWT, no-token→401, admin create user, analyst blocked from /users (403), 5-fail lockout→423. **Interop fixes from MIMI's review:** UPPERCASE enum wire values (CDR/PHONE/CALL), dotted WS tags (`alert.created`), bare SSE chat frames, numeric `Report.version`, `AuditEntry` added to contract.
 
 ## Phase 2 — Ingestion Engine (30 Aug – 1 Sep)
-- [ ] Universal CSV parser: delimiter sniffing, encoding detection, column-order agnostic
-- [ ] Operator detection: Jio / Airtel / BSNL / Vi / MTNL CDR schema fingerprints
-- [ ] Bank statement schema detection (major Indian banks)
-- [ ] Normalize to Unified Event Schema; preserve raw record verbatim in `raw` column
-- [ ] Async ingest jobs: `POST /cases/:id/ingest` → job queue → progress via WS `ingest.progress`
-- [ ] Ingestion speed target: 100k records/min (benchmark with synthetic CSV)
-- [ ] Audit log entry per file (name, SHA-256 hash, timestamp, user)
-- [ ] Synthetic data generator script (offline): realistic multi-domain CDR+bank+social dataset
-- [ ] **Gate:** upload a CSV via API, see normalized events in DB
+- [x] Universal CSV parser: delimiter sniffing, encoding detection, column-order agnostic *(delimiter sniffing via unquoted-delimiter counting across first 10 lines; UTF-8/UTF-16-BOM handled via lossy decode; column-order agnostic through canonical alias mapping)*
+- [x] Operator detection: Jio / Airtel / BSNL / Vi / MTNL CDR schema fingerprints *(filename + header + sample-value matching; bank/social/ipdr domain fingerprints scored the same way)*
+- [x] Bank statement schema detection (major Indian banks) *(generic alias set: narration/debit/credit/balance/value-date variants)*
+- [x] Normalize to Unified Event Schema; preserve raw record verbatim in `raw` column
+- [x] Async ingest jobs: `POST /cases/:id/ingest` → job queue → progress via WS `ingest.progress`
+- [x] Ingestion speed target: 100k records/min (benchmark with synthetic CSV) *(**284k rec/min measured** — parse + real inserts, dev build)*
+- [x] Audit log entry per file (name, SHA-256 hash, timestamp, user)
+- [x] Synthetic data generator script (offline): realistic multi-domain CDR+bank+social dataset *(`cargo run --bin gen-synthetic -- out.csv <rows> cdr|bank`; IMEI-reuse + hawala patterns seeded for later phases)*
+- [x] BONUS: `/cases/:id/events` wired to real DB with all contract filters (source/event/entity/from/to/limit/offset)
+- [ ] **Gate:** upload a CSV via API, see normalized events in DB ✅ *(verified: 100k CDR + 5k bank, filters + stats live)*
+
+**Debug war stories:** axum's hidden 2MB body limit choked big uploads (raised to 1GB); SQLite `value` keyword needed quoting; `push_values` adds its own VALUES keyword (double-VALUES bug); wire-format enums vs lowercase DB CHECK constraints caused silent `INSERT OR IGNORE` drops — added explicit `db_str()` converters + case-insensitive FromStr.
 
 ## Phase 3 — Correlation Engine (2–3 Sep)
 - [ ] Deterministic entity resolution: exact IMEI/IMSI/account/IP/handle matches
