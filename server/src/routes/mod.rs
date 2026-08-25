@@ -34,6 +34,7 @@ pub fn router(state: AppState) -> Router {
         .route("/cases/{id}/audit", get(cases::audit))
         .route("/cases/{id}/events", get(events::list))
         .route("/events/{id}", get(events::detail))
+        .route("/events/{id}/notes", post(events::annotate))
         .route("/cases/{id}/entities", get(entities::list))
         .route("/cases/{id}/graph", get(entities::graph))
         .route(
