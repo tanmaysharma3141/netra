@@ -9,10 +9,9 @@ macro_rules! str_enum {
         impl std::str::FromStr for $t {
             type Err = String;
             fn from_str(s: &str) -> Result<Self, Self::Err> {
-                match s {
-                    $($s => Ok(<$t>::$v),)+
-                    _ => Err(format!("unknown {} variant: {}", stringify!($t), s)),
-                }
+                let lc = s.trim().to_lowercase();
+                $(if lc == $s.to_lowercase() { return Ok(<$t>::$v); })+
+                Err(format!("unknown {} variant: {}", stringify!($t), s))
             }
         }
     };
@@ -32,6 +31,17 @@ str_enum!(SourceType {
     Social => "SOCIAL",
 });
 
+impl SourceType {
+    pub fn db_str(&self) -> &'static str {
+        match self {
+            Self::Cdr => "cdr",
+            Self::Ipdr => "ipdr",
+            Self::Bank => "bank",
+            Self::Social => "social",
+        }
+    }
+}
+
 str_enum!(EntityType {
     Phone => "PHONE",
     Imei => "IMEI",
@@ -39,6 +49,18 @@ str_enum!(EntityType {
     Ip => "IP",
     Handle => "HANDLE",
 });
+
+impl EntityType {
+    pub fn db_str(&self) -> &'static str {
+        match self {
+            Self::Phone => "phone",
+            Self::Imei => "imei",
+            Self::BankAcc => "bank_acc",
+            Self::Ip => "ip",
+            Self::Handle => "handle",
+        }
+    }
+}
 
 str_enum!(EventType {
     Call => "CALL",
@@ -49,6 +71,20 @@ str_enum!(EventType {
     Login => "LOGIN",
     Other => "OTHER",
 });
+
+impl EventType {
+    pub fn db_str(&self) -> &'static str {
+        match self {
+            Self::Call => "call",
+            Self::Sms => "sms",
+            Self::Data => "data",
+            Self::Txn => "txn",
+            Self::Post => "post",
+            Self::Login => "login",
+            Self::Other => "other",
+        }
+    }
+}
 
 str_enum!(LinkTier {
     High => "high",
@@ -74,6 +110,13 @@ str_enum!(CaseStatus {
     Active => "active",
     Archived => "archived",
     Closed => "closed",
+});
+
+str_enum!(IngestJobStatus {
+    Queued => "queued",
+    Running => "running",
+    Done => "done",
+    Failed => "failed",
 });
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
