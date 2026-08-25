@@ -8,12 +8,12 @@ You develop against Chirag's stub server until each phase gate flips to real dat
 
 ## Phase 0 — App Shell + Login (26–27 Aug)
 - [x] Tauri v2 + Vite + React + TS scaffold in `client/` (React 18.3, strict mode, `@/` + `@contracts/` aliases)
-- [ ] Tailwind CSS + shadcn/ui initialized (dark forensic-console theme) — shadcn initialized; theme tokens pending
-- [ ] React Router: layout with sidebar nav (Dashboard, Cases, Alerts, Settings, Audit)
-- [ ] API client module: fetch wrapper with JWT header injection + 401 redirect to login
-- [ ] Login screen against stub `/auth/login`; store token in Tauri secure store
-- [ ] Dashboard shell with KPI card grid (hardcoded data fine)
-- [ ] **Gate:** login flow works end-to-end against stubs
+- [x] Tailwind CSS + shadcn/ui initialized (dark forensic-console theme: near-black palette, severity tokens critical/high/medium/low, Geist Mono for IDs)
+- [x] React Router: layout with sidebar nav (Dashboard, Cases, Alerts, Settings, Audit) — HashRouter, RBAC-gated per PRD §5.2
+- [x] API client module: fetch wrapper with JWT header injection + 401 redirect to login (`src/api/client.ts`, ApiError parsing, no `any`)
+- [x] Login screen against stub `/auth/login`; store token in Tauri secure store (`tauri-plugin-store`; distinct 401/423/network states; localStorage fallback only in plain-browser dev)
+- [x] Dashboard shell with KPI card grid — wired LIVE to stub `GET /cases` (severity + source cards, case rows; skeleton/error+retry/empty states)
+- [x] **Gate:** login flow works end-to-end against stubs — verified vs IMAAN's server on :8420 (login 200 / bad-creds 401 / `/cases` shaped ✅); strict tsc + vite build clean
 
 ## Phase 1 — Cases + Dashboard Real Data (28–29 Aug)
 - [ ] Cases list: table with search, status filter, role-scoped visibility
