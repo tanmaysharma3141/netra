@@ -1,0 +1,17 @@
+# Rust
+server/target/
+
+# Obsidian
+.obsidian/
+
+# Env / secrets
+.env
+.env.*
+*.pem
+
+# OS noise
+Thumbs.db
+.DS_Store
+
+# Node (root-level only; client/ has its own)
+node_modules/

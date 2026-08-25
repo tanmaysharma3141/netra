@@ -7,12 +7,12 @@ Hardware note: GPU lives on this machine; everything runs server-side.
 ---
 
 ## Phase 0 — Scaffold + Contract Stubs (26–27 Aug)
-- [ ] Create repo structure: `server/` (Rust), `client/` (Tanmay's Tauri app), `contracts/`, `docs/`
-- [ ] `cargo new server` with Axum + tokio + sqlx (SQLite) + tower-http (CORS for dev)
-- [ ] Serve **stub routes** for every endpoint in `docs/API.md` returning hardcoded JSON shaped by `contracts/api-types.ts`
-- [ ] Wire WebSocket `/ws` endpoint that accepts subscribe frames and echoes a fake `alert.created` every 30s
-- [ ] Health check route + basic request logging middleware
-- [ ] **Gate:** Tanmay can build Login/Dashboard against your stubs
+- [x] Create repo structure: `server/` (Rust), `client/` (Tanmay's Tauri app), `contracts/`, `docs/`
+- [x] `cargo new server` with Axum + tokio + sqlx (SQLite) + tower-http (CORS for dev) *(sqlx deferred to Phase 1)*
+- [x] Serve **stub routes** for every endpoint in `docs/API.md` returning hardcoded JSON shaped by `contracts/api-types.ts`
+- [x] Wire WebSocket `/ws` endpoint that accepts subscribe frames and echoes a fake `alert.created` every 30s *(plus ingest.progress + training.progress emitters)*
+- [x] Health check route + basic request logging middleware
+- [ ] **Gate:** Tanmay can build Login/Dashboard against your stubs *(stubs live on port 8420, awaiting his confirmation in TEAM_PROGRESS.md)*
 
 ## Phase 1 — Data Layer + Auth (28–29 Aug)
 - [ ] SQLCipher enabled; migration system set up
