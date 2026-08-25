@@ -4,6 +4,78 @@ use uuid::Uuid;
 
 pub type Id = Uuid;
 
+macro_rules! str_enum {
+    ($t:ty { $($v:ident => $s:literal),+ $(,)? }) => {
+        impl std::str::FromStr for $t {
+            type Err = String;
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                match s {
+                    $($s => Ok(<$t>::$v),)+
+                    _ => Err(format!("unknown {} variant: {}", stringify!($t), s)),
+                }
+            }
+        }
+    };
+}
+
+str_enum!(Role {
+    Admin => "admin",
+    Supervisor => "supervisor",
+    Investigator => "investigator",
+    Analyst => "analyst",
+});
+
+str_enum!(SourceType {
+    Cdr => "cdr",
+    Ipdr => "ipdr",
+    Bank => "bank",
+    Social => "social",
+});
+
+str_enum!(EntityType {
+    Phone => "phone",
+    Imei => "imei",
+    BankAcc => "bank_acc",
+    Ip => "ip",
+    Handle => "handle",
+});
+
+str_enum!(EventType {
+    Call => "call",
+    Sms => "sms",
+    Data => "data",
+    Txn => "txn",
+    Post => "post",
+    Login => "login",
+    Other => "other",
+});
+
+str_enum!(LinkTier {
+    High => "high",
+    Medium => "medium",
+    Low => "low",
+});
+
+str_enum!(Severity {
+    Low => "low",
+    Medium => "medium",
+    High => "high",
+    Critical => "critical",
+});
+
+str_enum!(AlertStatus {
+    Open => "open",
+    Reviewing => "reviewing",
+    Confirmed => "confirmed",
+    FalsePositive => "false_positive",
+});
+
+str_enum!(CaseStatus {
+    Active => "active",
+    Archived => "archived",
+    Closed => "closed",
+});
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Role {

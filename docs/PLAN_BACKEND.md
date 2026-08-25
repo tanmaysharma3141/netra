@@ -15,14 +15,16 @@ Hardware note: GPU lives on this machine; everything runs server-side.
 - [ ] **Gate:** Tanmay can build Login/Dashboard against your stubs *(stubs live on port 8420, awaiting his confirmation in TEAM_PROGRESS.md)*
 
 ## Phase 1 — Data Layer + Auth (28–29 Aug)
-- [ ] SQLCipher enabled; migration system set up
-- [ ] Migrations: `users`, `cases`, `events`, `entities`, `entity_edges`, `alerts`, `audit_log`, `ingest_jobs`, `feedback_queue`
-- [ ] Seed script: admin user + demo case
-- [ ] Auth service: bcrypt hashing, JWT issue/verify, lockout after 5 failures
-- [ ] Auth middleware: role guard implementing the RBAC matrix (PRD §5.2)
-- [ ] Real `/auth/login` + `/auth/logout`; audit log entries on login/logout
-- [ ] Real CRUD: `/users`, `/cases`
+- [x] SQLCipher enabled; migration system set up *(deviation: sqlx has no SQLCipher support — shipped plain SQLite + sqlx migrations now; SQLCipher needs a custom libsqlite3 build, tracked as a hardening-pass item)*
+- [x] Migrations: `users`, `cases`, `events`, `entities`, `entity_edges`, `alerts`, `audit_log`, `ingest_jobs`, `feedback_queue`
+- [x] Seed script: admin user + demo case *(runs at startup; admin password via `NETRA_ADMIN_PASSWORD` env)*
+- [x] Auth service: bcrypt hashing, JWT issue/verify, lockout after 5 failures *(15-min lock, 8h tokens)*
+- [x] Auth middleware: role guard implementing the RBAC matrix (PRD §5.2) *(`Authed` extractor + `require(&[Role])` helper)*
+- [x] Real `/auth/login` + `/auth/logout`; audit log entries on login/logout
+- [x] Real CRUD: `/users`, `/cases` *(cases role-scoped: admins/supervisors see all, others see owned/assigned only; case stats computed from events/alerts/entities tables)*
 - [ ] **Gate:** Tanmay ships real login screen
+
+**Smoke-tested:** wrong-pw→401, good login→JWT, no-token→401, admin create user, analyst blocked from /users (403), 5-fail lockout→423.
 
 ## Phase 2 — Ingestion Engine (30 Aug – 1 Sep)
 - [ ] Universal CSV parser: delimiter sniffing, encoding detection, column-order agnostic

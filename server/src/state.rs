@@ -1,22 +1,22 @@
-use std::sync::atomic::AtomicU64;
-
+use sqlx::SqlitePool;
 use tokio::sync::broadcast;
-use uuid::Uuid;
 
 use crate::models::{WsEnvelope, WsEvent};
 
 #[derive(Clone)]
 pub struct AppState {
+    pub pool: SqlitePool,
     pub tx: broadcast::Sender<WsEnvelope>,
-    pub request_counter: std::sync::Arc<AtomicU64>,
+    pub jwt_secret: std::sync::Arc<String>,
 }
 
 impl AppState {
-    pub fn new() -> Self {
+    pub fn new(pool: SqlitePool, jwt_secret: String) -> Self {
         let (tx, _) = broadcast::channel(256);
         Self {
+            pool,
             tx,
-            request_counter: std::sync::Arc::new(AtomicU64::new(0)),
+            jwt_secret: std::sync::Arc::new(jwt_secret),
         }
     }
 
@@ -25,9 +25,5 @@ impl AppState {
             topic: topic.into(),
             event,
         });
-    }
-
-    pub fn new_id() -> Uuid {
-        Uuid::new_v4()
     }
 }

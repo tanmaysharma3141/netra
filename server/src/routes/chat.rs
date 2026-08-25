@@ -38,7 +38,7 @@ pub async fn ask(
     let state = state.clone();
 
     let s = stream::iter(answer.into_iter().enumerate())
-        .then(move |(i, chunk)| {
+        .then(move |(_, chunk)| {
             let _ = &state;
             async move {
                 tokio::time::sleep(Duration::from_millis(60)).await;
