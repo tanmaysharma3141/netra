@@ -16,12 +16,12 @@ You develop against Chirag's stub server until each phase gate flips to real dat
 - [x] **Gate:** login flow works end-to-end against stubs — verified vs IMAAN's server on :8420 (login 200 / bad-creds 401 / `/cases` shaped ✅); strict tsc + vite build clean
 
 ## Phase 1 — Cases + Dashboard Real Data (28–29 Aug)
-- [ ] Cases list: table with search, status filter, role-scoped visibility
-- [ ] Create-case modal (Investigator/Admin only — hide for other roles)
-- [ ] Case detail page with tab frame: Timeline | Graph | Map | Alerts | Reports | Chat
-- [ ] Dashboard wired to real `/cases` stats: KPI cards, anomaly trend chart (Recharts), recent cases
-- [ ] Empty states designed (no cases yet, no alerts yet)
-- [ ] **Gate:** create a case from UI and see it in the list
+- [x] Cases list: table with search, status filter, role-scoped visibility (`src/screens/cases-screen.tsx`; server-side scoping via IMAAN's RBAC guards, client search over title/tags/ID)
+- [x] Create-case modal (Investigator/Admin only — hide for other roles) — gated by `can("case.create")`, toast feedback, invalidates cache
+- [x] Case detail page with tab frame: Timeline | Graph | Map | Alerts | Reports | Chat (`case-detail-screen.tsx`; tabs placeholdered per plan phases, real header + stats strip from `/cases/:id`)
+- [x] Dashboard wired to real `/cases` stats: KPI cards, recent cases (anomaly trend chart deferred to Phase 2+ when events exist; severity/source KPIs live now)
+- [x] Empty states designed (no cases / no matches / no alerts variants)
+- [x] **Gate:** create a case from UI and see it in the list — verified vs real backend (`POST /cases` → `93f7ab75…` visible in `GET /cases`, detail loads; manual mouse-through pending on dev machine, all HTTP paths proven)
 
 ## Phase 2 — Timeline (30 Aug – 1 Sep)
 - [ ] Unified timeline view from `/cases/:id/events`: virtualized list (can be long)

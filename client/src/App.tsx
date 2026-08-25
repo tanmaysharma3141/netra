@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/app-shell"
 import { LoginScreen } from "@/screens/login-screen"
 import { DashboardScreen } from "@/screens/dashboard-screen"
 import { CasesScreen } from "@/screens/cases-screen"
+import { CaseDetailScreen } from "@/screens/case-detail-screen"
 import { AlertsScreen } from "@/screens/alerts-screen"
 import { ReportsScreen } from "@/screens/reports-screen"
 import { SettingsScreen } from "@/screens/settings-screen"
@@ -41,6 +42,7 @@ export default function App() {
         <Route element={<AppShell />}>
           <Route index element={<DashboardScreen />} />
           <Route path="cases" element={<CasesScreen />} />
+          <Route path="cases/:id" element={<CaseDetailScreen />} />
           <Route path="alerts" element={<AlertsScreen />} />
           <Route path="reports" element={<ReportsScreen />} />
           <Route path="settings" element={<SettingsScreen />} />

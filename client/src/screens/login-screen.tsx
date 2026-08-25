@@ -128,12 +128,15 @@ function toLoginError(err: unknown): LoginError {
           kind: "invalid",
           message: "The officer ID or password is incorrect. Check your credentials and try again.",
         }
-      case 423:
+      case 423: {
+        const match = /retry in (\d+)s/.exec(err.message)
         return {
           kind: "locked",
-          message:
-            "Too many failed attempts (5). This account is locked — contact your system administrator to unlock it.",
+          message: match
+            ? `Too many failed attempts. This account is locked — try again in ${match[1]}s or contact your system administrator.`
+            : "Too many failed attempts. This account is locked — contact your system administrator.",
         }
+      }
       case 0:
         return {
           kind: "network",
