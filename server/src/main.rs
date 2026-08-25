@@ -1,5 +1,6 @@
 mod auth;
 mod db;
+mod ingest;
 mod models;
 mod routes;
 mod state;
@@ -52,6 +53,7 @@ async fn main() {
     tokio::spawn(ticker(state.clone()));
 
     let app = routes::router(state)
+        .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024 * 1024))
         .layer(TraceLayer::new_for_http())
         .layer(cors());
 

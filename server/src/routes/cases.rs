@@ -202,8 +202,8 @@ pub async fn audit(
     Path(id): Path<Uuid>,
 ) -> Result<Json<Vec<AuditEntry>>, Response> {
     authed.require(&[Role::Admin, Role::Supervisor])?;
-    let rows: Vec<(String, String, String, String)> = sqlx::query_as(
-        "SELECT id, user_id, action, at FROM audit_log WHERE case_id = ?1 ORDER BY at DESC LIMIT 200",
+    let rows: Vec<(String, String, String, String, String)> = sqlx::query_as(
+        "SELECT id, user_id, action, detail, at FROM audit_log WHERE case_id = ?1 ORDER BY at DESC LIMIT 200",
     )
     .bind(id.to_string())
     .fetch_all(&state.pool)
@@ -212,12 +212,12 @@ pub async fn audit(
 
     let entries = rows
         .into_iter()
-        .map(|(eid, uid, action, at)| AuditEntry {
+        .map(|(eid, uid, action, detail, at)| AuditEntry {
             id: Uuid::parse_str(&eid).unwrap_or_default(),
             user_id: Uuid::parse_str(&uid).unwrap_or_default(),
             case_id: Some(id),
             action,
-            detail: serde_json::json!({}),
+            detail: serde_json::from_str(&detail).unwrap_or_else(|_| serde_json::json!({})),
             at: chrono::DateTime::parse_from_rfc3339(&at)
                 .map(|d| d.with_timezone(&chrono::Utc))
                 .unwrap_or_else(|_| chrono::Utc::now()),

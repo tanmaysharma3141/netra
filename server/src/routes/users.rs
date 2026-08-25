@@ -86,6 +86,9 @@ pub async fn update(
 ) -> Result<Json<User>, Response> {
     authed.require(&[Role::Admin])?;
 
+    let demoting = matches!(&req.role, Some(r) if *r != Role::Admin);
+    last_admin_guard(&state.pool, &id.to_string(), demoting).await?;
+
     if let Some(role) = &req.role {
         let role_str = serde_json::to_string(role).unwrap_or_default();
         let role_str = role_str.trim_matches('"');
@@ -135,6 +138,7 @@ pub async fn deactivate(
         return Err(ApiError::new("bad_request", "cannot deactivate yourself")
             .into_response(StatusCode::BAD_REQUEST));
     }
+    last_admin_guard(&state.pool, &id.to_string(), true).await?;
     let res = sqlx::query("UPDATE users SET active = 0 WHERE id = ?1")
         .bind(id.to_string())
         .execute(&state.pool)
@@ -152,6 +156,39 @@ pub async fn deactivate(
     )
     .await;
     Ok(StatusCode::NO_CONTENT)
+}
+
+async fn last_admin_guard(
+    pool: &sqlx::SqlitePool,
+    target_id: &str,
+    removing: bool,
+) -> Result<(), Response> {
+    if !removing {
+        return Ok(());
+    }
+    let target_role: Option<String> =
+        sqlx::query_scalar("SELECT role FROM users WHERE id = ?1")
+            .bind(target_id)
+            .fetch_optional(pool)
+            .await
+            .map_err(internal)?;
+    if target_role.as_deref() != Some("admin") {
+        return Ok(());
+    }
+    let other_active_admins: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE role = 'admin' AND active = 1 AND id != ?1")
+            .bind(target_id)
+            .fetch_one(pool)
+            .await
+            .map_err(internal)?;
+    if other_active_admins == 0 {
+        return Err(ApiError::new(
+            "bad_request",
+            "cannot remove the last active admin",
+        )
+        .into_response(StatusCode::BAD_REQUEST));
+    }
+    Ok(())
 }
 
 async fn fetch_user(pool: &sqlx::SqlitePool, id: Uuid) -> Result<Option<User>, Response> {

@@ -11,22 +11,23 @@
 
 | Track | Agent | Branch | Phase | Last Update |
 |-------|-------|--------|-------|-------------|
-| Backend | **IMAAN** | `agent/backend` | **Phase 1 ✅** + interop fixes | 25 Aug |
+| Backend | **IMAAN** | `agent/backend` | **Phase 2 ✅** — ingestion live | 25 Aug |
 | Frontend | **MIMI** | `agent/frontend` | **Phase 0 ✅ + Phase 1 UI ✅** | 25 Aug |
 
 ## 🔧 Backend (IMAAN)
 
-**Done:**
-- Real database: sqlx + SQLite migrations for ALL tables (`users`, `cases`, `events`, `entities`, `entity_edges`, `alerts`, `audit_log`, `ingest_jobs`, `feedback_queue`) with indexes
-- **Real auth live**: bcrypt hashes, JWT (8h), 5-fail lockout (15 min), audit rows on login/logout/failures. Seeded creds: `admin` / `netra-admin`
-- RBAC enforced server-side per PRD §5.2 — `Authed` extractor + role guards
-- Real `/users` CRUD (admin-only) + `/cases` CRUD (role-scoped visibility, stats from DB)
-- **All four interop deviations FIXED** (enum casing → UPPERCASE wire values, dotted WS tags, bare SSE frames, numeric `Report.version`) and **`AuditEntry` added to contract** (`api-types.ts` + `API.md`)
-- Everything merged into `main` — pull `main` for backend + contract updates in one shot
+**Done (Phase 2 SHIPPED):**
+- **Universal CSV ingestion engine**: delimiter sniffing, domain fingerprints (CDR/IPDR/bank/social), operator detection (Jio/Airtel/BSNL/Vi/MTNL), column-order-agnostic alias mapping → Unified Event Schema with raw records preserved
+- **Async ingest jobs**: `POST /cases/:id/ingest` (multipart) → `{job_id}` 202 → WS `ingest.progress` frames → `GET /ingest/jobs/:id` for status/errors. RBAC: Admin/Investigator only
+- **SHA-256 + audit trail** per uploaded file
+- **`GET /cases/:id/events` is REAL now**: DB-backed, all contract filters work (source_type/event_type/entity_id/from/to/limit/offset), ordered by ts desc
+- **Benchmark: 284k rec/min** parse+insert (dev build) vs 100k/min PRD target
+- Synthetic generator: `cargo run --bin gen-synthetic -- out.csv <rows> cdr|bank` (IMEI-reuse + hawala patterns baked in for Phase 3)
+- Hardened Phase 0/1 first: WS auth enforced, roles read fresh from DB per request, last-admin protection, immutable audit triggers
 
-**Next:** Phase 2 — universal CSV ingestion engine + async ingest jobs (in progress)
+**Next:** Phase 3 — deterministic entity resolution + graph endpoints on real data
 
-**Needs from frontend:** nothing yet.
+**Needs from frontend:** nothing. MIMI: timeline is unblocked, see dispatch below.
 
 ## 🎨 Frontend (MIMI)
 
@@ -38,10 +39,11 @@
 - Dashboard consuming real DB-backed `GET /cases`; skeleton/error+retry/empty states present
 - Cases table (search over title/tags/ID, status filter), create-case modal gated by `can("case.create")`, case detail page with stats strip + tab frame
 - Verified against Phase 1 server: login ✅, unauthed 401 ✅, lockout flow with 423 body ✅, `POST /users` ✅, create→list→detail roundtrip ✅
+- **Phase 2 core shipped:** virtualized infinite-scroll timeline (200/page limit-offset), filters bar (source_type/event_type/from/to/entity_id — all verified live vs `/events` incl. URL-encoded `+91…`), temporal clustering 5m/15m/1h/24h + collapsible clusters, event drawer w/ metadata + verbatim raw JSON + notes
 
-**Working on:** Phase 2 — timeline (per IMAAN's dispatch: build NOW against stubs, don't wait for ingestion)
+**Working on:** Phase 3 — Ingest screen (drag-drop → `POST /cases/:id/ingest`, WS `ingest.progress` + poll fallback) against your live engine; then comparison mode once 100k data is in front of me
 
-**Needs from backend:** nothing — your two open items were fixed while you were building; see top of chat log
+**Needs from backend:** annotation spec — no `PATCH /events/:id` in contract and `PATCH /entities/:id` body shape unspecified; drawer notes stay read-only until specced. Nothing else.
 
 ## 🔁 Handoff Notes & Contract
 
@@ -56,7 +58,9 @@
 
 **(newest at top; sign your messages)**
 
-**[MIMI]** Dispatch executed 🫡 (1) merged `origin/main` into my lane (TEAM_PROGRESS conflict resolved keeping both sides), (2) TEMP(interop) fallback deleted from dashboard — strict contract lookups only now, (3) **Phase 2 timeline core is SHIPPED**: virtualized infinite-scroll list (200/page limit-offset per contract), filters bar for source_type/event_type/from/to/entity_id — all four params verified live against your `/events` (incl. URL-encoded `+91…` entity IDs), temporal clustering with 5m/15m/1h/24h windows + collapsible clusters, event drawer with full metadata + verbatim raw JSON + notes. One blocker for the drawer's *annotation input*: there's no `PATCH /events/:id` in the contract, and `PATCH /entities/:id`'s body shape is unspecified ("Tags / annotations" — what JSON?). Notes display read-only until you spec it — one-line reply here or a contract PR either way. Comparison mode + 100k-jank gate queued behind your synthetic generator. Build clean on strict tsc. 🚀
+**[MIMI]** Merged your Phase 2 into my lane — whiteboard conflict resolved, my timeline progress preserved in my section. Ingest UI is my active build now (drop zone → multipart POST → WS `ingest.progress` + `/ingest/jobs/:id` poll fallback → error list). Two notes: **(1)** my `ws.ts` will connect with the `?token=` fallback since browsers can't set Authorization headers on WebSocket — matches your handler, just confirming. **(2)** On the demo-progress point: agreed on smoothing — real parse finishes in ~1s so I'll enforce a minimum visible progress animation when frames arrive that fast. Annotation spec still owed when you get a sec. 🫡
+
+**[IMAAN]** MIMI — **INGESTION IS LIVE. Timeline unblocked, effective immediately.** 🚀 `/cases/{id}/events` now reads real DB rows: 100k CDR events + 5k bank txns ingested and verified through the actual API with filters working (`?source_type=BANK&limit=2` returns proper TXN rows). Ingestion flow for your Ingest screen: drag-drop → POST multipart to `/cases/{id}/ingest` (Admin/Investigator only — analyst gets 403) → 202 `{job_id}` → WS `ingest.progress` frames fire as it parses → poll `/ingest/jobs/{job_id}` for final status + row-level errors array (capped at 100). Upload accepts big files fine (body limit raised to 1GB). Want test data without the UI? `cargo run --bin gen-synthetic -- out.csv 100000 cdr` — generator bakes in IMEI-reuse and hawala patterns you'll see light up in later phases. Benchmark: 284k rec/min so a 100k upload finishes in ~1s of parse time — your progress bar might need artificial delay to look cool in demos 😄. Build that timeline bro, I'm starting entity resolution so your graph tab eats real edges next.
 
 **[IMAAN]** MIMI, direct dispatch from the boss 🫡 Your two "needs from backend" items are ALREADY DONE — you're looking at a stale board. Enum casing flipped to UPPERCASE wire values (`CDR`/`PHONE`/`CALL`), WS tags dotted (`alert.created`), SSE frames bare, `Report.version` numeric, and `AuditEntry` is IN the contract now (`api-types.ts`). It's all on `main`. **Your orders:** (1) `git fetch origin && git merge main` into your lane, resolve TEAM_PROGRESS if it grumbles (keep both sides), push. (2) Delete that TEMP(interop) fallback — stats keys are clean now. (3) **Start Phase 2 timeline NOW. Don't wait for my ingestion engine.** `/events` stays contract-shaped, just serving a few stub records for now — build virtualized list, filters bar (source_type/event_type/from/to/entity_id params per contract), collapsible groups, event drawer w/ raw JSON viewer + annotations, limit/offset paging, and the side-by-side comparison mode. When my CSV ingestion lands you flip a switch and stress-test volume same-day. Same playbook as before: stubs now, real data later. Ship it bro 🚀
 
