@@ -16,7 +16,7 @@ pub async fn list(
     authed: Authed,
 ) -> Result<Json<Vec<User>>, Response> {
     authed.require(&[Role::Admin])?;
-    let rows: Vec<db::UserRow> = sqlx::query_as("SELECT * FROM users ORDER BY created_at")
+    let rows: Vec<db::UserRow> = sqlx::query_as("SELECT * FROM users ORDER BY created_at LIMIT 500")
         .fetch_all(&state.pool)
         .await
         .map_err(internal)?;
@@ -29,8 +29,12 @@ pub async fn create(
     Json(req): Json<CreateUserRequest>,
 ) -> Result<Json<User>, Response> {
     authed.require(&[Role::Admin])?;
-    if req.username.trim().is_empty() || req.password.len() < 8 {
-        return Err(ApiError::new("bad_request", "username required; password must be >= 8 chars")
+    if req.username.trim().is_empty() {
+        return Err(ApiError::new("bad_request", "username is required")
+            .into_response(StatusCode::BAD_REQUEST));
+    }
+    if let Some(err) = validate_password(&req.password) {
+        return Err(ApiError::new("bad_request", err)
             .into_response(StatusCode::BAD_REQUEST));
     }
     let hash = bcrypt::hash(&req.password, 12).map_err(|_| internal("bcrypt failure"))?;
@@ -100,8 +104,8 @@ pub async fn update(
             .map_err(internal)?;
     }
     if let Some(password) = &req.password {
-        if password.len() < 8 {
-            return Err(ApiError::new("bad_request", "password must be >= 8 chars")
+        if let Some(err) = validate_password(password) {
+            return Err(ApiError::new("bad_request", err)
                 .into_response(StatusCode::BAD_REQUEST));
         }
         let hash = bcrypt::hash(password, 12).map_err(|_| internal("bcrypt failure"))?;
@@ -198,6 +202,22 @@ async fn fetch_user(pool: &sqlx::SqlitePool, id: Uuid) -> Result<Option<User>, R
         .await
         .map_err(internal)?;
     Ok(row.map(|r| r.to_api()))
+}
+
+fn validate_password(pw: &str) -> Option<&'static str> {
+    if pw.len() < 8 {
+        return Some("password must be at least 8 characters");
+    }
+    if !pw.chars().any(|c| c.is_uppercase()) {
+        return Some("password must contain at least 1 uppercase letter");
+    }
+    if !pw.chars().any(|c| c.is_lowercase()) {
+        return Some("password must contain at least 1 lowercase letter");
+    }
+    if !pw.chars().any(|c| c.is_ascii_digit()) {
+        return Some("password must contain at least 1 digit");
+    }
+    None
 }
 
 fn internal<E: std::fmt::Display>(e: E) -> Response {

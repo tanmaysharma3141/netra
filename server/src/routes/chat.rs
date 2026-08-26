@@ -15,6 +15,7 @@ use crate::stub_data;
 
 pub async fn ask(
     State(state): State<AppState>,
+    _authed: crate::auth::Authed,
     Path(_case_id): Path<Uuid>,
     Json(req): Json<ChatRequest>,
 ) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {

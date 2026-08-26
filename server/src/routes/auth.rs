@@ -45,6 +45,9 @@ pub async fn logout(
     State(state): State<AppState>,
     authed: crate::auth::Authed,
 ) -> StatusCode {
+    // Revoke the token so it can't be used again
+    crate::auth::revoke_token(&state.pool, &authed.jti).await;
+
     db::audit(
         &state.pool,
         &authed.id,

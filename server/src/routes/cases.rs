@@ -243,32 +243,127 @@ fn ensure_case_visible(authed: &Authed, row: &db::CaseRow) -> Result<(), Respons
 }
 
 async fn fill_stats(state: &AppState, cases: &mut [Case]) {
+    if cases.is_empty() {
+        return;
+    }
+
+    // Batch query: stats for all cases in one round-trip
+    let case_ids: Vec<String> = cases.iter().map(|c| c.id.to_string()).collect();
+    let placeholders: Vec<String> = case_ids.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
+    let ph = placeholders.join(",");
+
+    // Event counts by source_type per case
+    let src_query = format!(
+        "SELECT case_id, source_type, COUNT(*) as cnt FROM events WHERE case_id IN ({ph}) GROUP BY case_id, source_type"
+    );
+    let mut src_qb = sqlx::QueryBuilder::new(&src_query);
+    for id in &case_ids {
+        src_qb.push_bind(id.clone());
+    }
+    let src_rows: Vec<(String, String, i64)> = src_qb
+        .build_query_as()
+        .fetch_all(&state.pool)
+        .await
+        .unwrap_or_default();
+
+    // Alert counts by severity per case
+    let sev_query = format!(
+        "SELECT case_id, severity, COUNT(*) as cnt FROM alerts WHERE case_id IN ({ph}) GROUP BY case_id, severity"
+    );
+    let mut sev_qb = sqlx::QueryBuilder::new(&sev_query);
+    for id in &case_ids {
+        sev_qb.push_bind(id.clone());
+    }
+    let sev_rows: Vec<(String, String, i64)> = sev_qb
+        .build_query_as()
+        .fetch_all(&state.pool)
+        .await
+        .unwrap_or_default();
+
+    // Entity counts per case
+    let ent_query = format!(
+        "SELECT case_id, COUNT(*) as cnt FROM entities WHERE case_id IN ({ph}) GROUP BY case_id"
+    );
+    let mut ent_qb = sqlx::QueryBuilder::new(&ent_query);
+    for id in &case_ids {
+        ent_qb.push_bind(id.clone());
+    }
+    let ent_rows: Vec<(String, i64)> = ent_qb
+        .build_query_as()
+        .fetch_all(&state.pool)
+        .await
+        .unwrap_or_default();
+
+    // Build lookup maps
+    let mut src_map: std::collections::HashMap<String, std::collections::HashMap<String, i64>> = std::collections::HashMap::new();
+    for (cid, src, cnt) in src_rows {
+        src_map.entry(cid).or_default().insert(src, cnt);
+    }
+    let mut sev_map: std::collections::HashMap<String, std::collections::HashMap<String, i64>> = std::collections::HashMap::new();
+    for (cid, sev, cnt) in sev_rows {
+        sev_map.entry(cid).or_default().insert(sev, cnt);
+    }
+    let mut ent_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    for (cid, cnt) in ent_rows {
+        ent_map.insert(cid, cnt);
+    }
+
+    // Apply stats
     for c in cases.iter_mut() {
         let cid = c.id.to_string();
-        let src_rows: Vec<(String, i64)> = sqlx::query_as(
-            "SELECT source_type, COUNT(*) FROM events WHERE case_id = ?1 GROUP BY source_type",
-        )
-        .bind(&cid)
-        .fetch_all(&state.pool)
-        .await
-        .unwrap_or_default();
-        let sev_rows: Vec<(String, i64)> = sqlx::query_as(
-            "SELECT severity, COUNT(*) FROM alerts WHERE case_id = ?1 GROUP BY severity",
-        )
-        .bind(&cid)
-        .fetch_all(&state.pool)
-        .await
-        .unwrap_or_default();
-        let entity_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM entities WHERE case_id = ?1")
-            .bind(&cid)
-            .fetch_one(&state.pool)
-            .await
-            .unwrap_or(0);
-
-        c.stats.events_by_source = db::source_counts(src_rows);
-        c.stats.alerts_by_severity = db::severity_counts(sev_rows);
-        c.stats.entity_count = entity_count as u64;
+        if let Some(src) = src_map.remove(&cid) {
+            let converted: Vec<(String, i64)> = src.into_iter().collect();
+            c.stats.events_by_source = db::source_counts(converted);
+        }
+        if let Some(sev) = sev_map.remove(&cid) {
+            let converted: Vec<(String, i64)> = sev.into_iter().collect();
+            c.stats.alerts_by_severity = db::severity_counts(converted);
+        }
+        c.stats.entity_count = ent_map.remove(&cid).unwrap_or(0) as u64;
     }
+}
+
+pub async fn delete(
+    State(state): State<AppState>,
+    authed: Authed,
+    Path(id): Path<Uuid>,
+) -> Result<StatusCode, Response> {
+    authed.require(&[Role::Admin])?;
+
+    let row: Option<db::CaseRow> = sqlx::query_as("SELECT * FROM cases WHERE id = ?1")
+        .bind(id.to_string())
+        .fetch_optional(&state.pool)
+        .await
+        .map_err(internal)?;
+    let Some(_case) = row else {
+        return Err(ApiError::new("not_found", "case not found").into_response(StatusCode::NOT_FOUND));
+    };
+
+    let cid = id.to_string();
+
+    // Cascade delete all related records
+    sqlx::query("DELETE FROM events WHERE case_id = ?1").bind(&cid).execute(&state.pool).await.map_err(internal)?;
+    sqlx::query("DELETE FROM entities WHERE case_id = ?1").bind(&cid).execute(&state.pool).await.map_err(internal)?;
+    sqlx::query("DELETE FROM entity_edges WHERE case_id = ?1").bind(&cid).execute(&state.pool).await.map_err(internal)?;
+    sqlx::query("DELETE FROM alerts WHERE case_id = ?1").bind(&cid).execute(&state.pool).await.map_err(internal)?;
+    sqlx::query("DELETE FROM reports WHERE case_id = ?1").bind(&cid).execute(&state.pool).await.map_err(internal)?;
+    sqlx::query("DELETE FROM ingest_jobs WHERE case_id = ?1").bind(&cid).execute(&state.pool).await.map_err(internal)?;
+    sqlx::query("DELETE FROM feedback_queue WHERE case_id = ?1").bind(&cid).execute(&state.pool).await.map_err(internal)?;
+    sqlx::query("DELETE FROM audit_log WHERE case_id = ?1").bind(&cid).execute(&state.pool).await.map_err(internal)?;
+
+    // Delete the case itself
+    sqlx::query("DELETE FROM cases WHERE id = ?1").bind(&cid).execute(&state.pool).await.map_err(internal)?;
+
+    db::audit(
+        &state.pool,
+        &authed.id,
+        None,
+        "case.deleted",
+        serde_json::json!({ "case_id": cid }),
+    )
+    .await;
+
+    Ok(StatusCode::NO_CONTENT)
 }
 
 fn internal<E: std::fmt::Display>(e: E) -> Response {

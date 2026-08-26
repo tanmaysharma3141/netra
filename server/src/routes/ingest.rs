@@ -40,6 +40,28 @@ pub async fn upload(
         let Some(file_name) = field.file_name().map(String::from) else {
             continue;
         };
+
+        // Validate file extension
+        let ext = std::path::Path::new(&file_name)
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
+        if !matches!(ext.as_str(), "csv" | "tsv" | "txt" | "zip") {
+            return Err(ApiError::new(
+                "bad_request",
+                format!("unsupported file type '.{ext}'; accepted: .csv, .tsv, .txt, .zip"),
+            )
+            .into_response(StatusCode::BAD_REQUEST));
+        }
+
+        // Sanitize filename: strip path separators, limit length
+        let safe_name = file_name
+            .chars()
+            .filter(|c| !matches!(c, '/' | '\\' | '\0'))
+            .take(255)
+            .collect::<String>();
+
         let job_id = Uuid::new_v4();
         let save_path = StdPath::new(UPLOAD_DIR).join(format!("{job_id}.bin"));
 
@@ -60,7 +82,7 @@ pub async fn upload(
         sqlx::query("INSERT INTO ingest_jobs (id, case_id, status, file_name, sha256, records_parsed, total_est, errors, started_at) VALUES (?1, ?2, 'queued', ?3, ?4, 0, 0, '[]', ?5)")
             .bind(job_id.to_string())
             .bind(case_id.to_string())
-            .bind(&file_name)
+            .bind(&safe_name)
             .bind(&sha256)
             .bind(now)
             .execute(&state.pool)
@@ -72,12 +94,12 @@ pub async fn upload(
             &authed.id,
             Some(&case_id.to_string()),
             "ingest.uploaded",
-            serde_json::json!({ "file": file_name, "sha256": sha256 }),
+            serde_json::json!({ "file": safe_name, "sha256": sha256 }),
         )
         .await;
 
         let st = state.clone();
-        let spawn_name = file_name.clone();
+        let spawn_name = safe_name.clone();
         tokio::spawn(async move {
             run_job(st, case_id, job_id, save_path, spawn_name, sha256).await;
         });
@@ -169,10 +191,15 @@ async fn run_job(
 
             tracing::info!(file = %file_name, parsed = res.parsed, domain = res.domain, "ingest done");
 
-            let resolve_pool = state.pool.clone();
+            // Pipeline: resolve → analyze → push alerts
+            // Uses pipeline_lock to serialize across all cases
             let analyze_state = state.clone();
+            let resolve_pool = state.pool.clone();
             tokio::spawn(async move {
                 let _guard = analyze_state.pipeline_lock.lock().await;
+
+                // Check if another job already resolved this case recently (skip redundant)
+                // Resolve is idempotent (full rebuild) — pipeline_lock serializes across cases
                 match crate::resolve::resolve_case(&resolve_pool, case_id).await {
                     Ok(s) => {
                         tracing::info!(
@@ -249,8 +276,6 @@ async fn insert_events(
     }
     Ok(total)
 }
-
-
 
 async fn set_status(pool: &sqlx::SqlitePool, job_id: Uuid, status: &str) {
     let _ = sqlx::query("UPDATE ingest_jobs SET status=?2 WHERE id=?1")

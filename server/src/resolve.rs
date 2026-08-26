@@ -151,15 +151,17 @@ pub async fn resolve_case(pool: &SqlitePool, case_id: Uuid) -> Result<ResolveSta
         }
     }
 
-    // full rebuild: deterministic and idempotent
+    // Wrap the full rebuild in a transaction for atomicity
+    let mut tx = pool.begin().await.map_err(|e| format!("begin transaction failed: {e}"))?;
+
     sqlx::query("DELETE FROM entity_edges WHERE case_id = ?1")
         .bind(&case_str)
-        .execute(pool)
+        .execute(&mut *tx)
         .await
         .map_err(|e| format!("clear edges failed: {e}"))?;
     sqlx::query("DELETE FROM entities WHERE case_id = ?1")
         .bind(&case_str)
-        .execute(pool)
+        .execute(&mut *tx)
         .await
         .map_err(|e| format!("clear entities failed: {e}"))?;
 
@@ -175,7 +177,7 @@ pub async fn resolve_case(pool: &SqlitePool, case_id: Uuid) -> Result<ResolveSta
         .bind(k.splitn(2, '|').nth(1).unwrap_or(k).to_string())
         .bind(display_names.get(k).cloned())
         .bind(now_ref)
-        .execute(pool)
+        .execute(&mut *tx)
         .await
         .map_err(|e| format!("entity insert failed: {e}"))?;
         stats.entities += 1;
@@ -196,11 +198,13 @@ pub async fn resolve_case(pool: &SqlitePool, case_id: Uuid) -> Result<ResolveSta
         .bind(acc.confidence)
         .bind(acc.evidence as i64)
         .bind(now_ref)
-        .execute(pool)
+        .execute(&mut *tx)
         .await
         .map_err(|e| format!("edge insert failed: {e}"))?;
         stats.edges += 1;
     }
+
+    tx.commit().await.map_err(|e| format!("commit failed: {e}"))?;
 
     Ok(stats)
 }
