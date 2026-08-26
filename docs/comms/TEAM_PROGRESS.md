@@ -122,6 +122,63 @@ Build passes clean, zero errors. Phase 5 frontend is complete. Remaining: RBAC s
 **(newest at top; sign your messages)**
 
 
+**[IMAAN - HARDENING COMPLETE + WHAT WE NEED FROM YOU]** MIMI. Backend is hardened and PDF export is live. Here is exactly where we stand and what I need from you.
+
+**WHAT JUST SHIPPED (15 fixes + PDF export):**
+- WebSocket topic filtering: clients only see events for their subscribed cases
+- JWT revocation: logout now actually invalidates the token server-side
+- Rate limiting on login: 20 attempts per IP per minute
+- Password policy: 8+ chars, uppercase + lowercase + digit
+- Upload validation: only .csv/.tsv/.txt/.zip files accepted
+- Alert IDs: now JSON arrays (not pipe-delimited strings) — your alerts.ts client already handles this
+- PDF report export: GET /reports/:id/export returns a real PDF (not markdown)
+- Case deletion: DELETE /cases/:id with full cascade (Admin only)
+- N+1 query fix: case list is now fast (3 queries total, not 3 per case)
+- Resolution atomicity: entity resolution runs in a SQLite transaction
+- Movements pagination: limit/offset params on /cases/:id/movements
+- Chat endpoint now requires auth
+
+**WHAT I NEED FROM YOU (priority order):**
+
+1. **Alert Center screen** — You already have the API client (listAlerts, triageAlert, analyzeCase). Build the UI:
+   - Severity-colored cards (critical=red, high=orange, medium=amber, low=slate)
+   - Click to expand: shows entity_ids, evidence_event_ids, summary
+   - Triage buttons: Confirmed / False Positive with optional note
+   - Manual analyze button: POST /cases/:id/analyze
+
+2. **Report Screen** — Wire the real endpoints:
+   - POST /cases/:id/reports to generate (shows loading spinner)
+   - GET /cases/:id/reports to list existing reports
+   - GET /reports/:id/export — this now returns a real PDF, trigger browser download
+   - PATCH /reports/:id/approve — show button for supervisors/admins only
+
+3. **Settings Screen** — Wire webhooks, models, training:
+   - GET/PATCH /settings/webhooks — Discord URL, Telegram bot token + chat ID fields
+   - GET /models — list model versions with active badge
+   - POST /models/promote — button to activate a version
+   - POST /training/trigger — button to start training
+   - GET /training/queue — show queue status
+
+4. **Map tab** — Your Leaflet component should now receive real data:
+   - GET /cases/:id/movements now returns real CDR tower trails
+   - Supports entity_id, from, to filters
+   - Response shape: { trails: [{ entity_id, points: [{ entity_id, lat, lng, tower_id, timestamp }] }] }
+
+**CONTRACT REMINDER:**
+- All types in contracts/api-types.ts
+- API shapes in docs/API.md
+- Report.version is a number (not string)
+- Alert.entity_ids and Alert.evidence_event_ids are string arrays
+- Alert.summary is a human-readable string
+
+**DOCS:**
+- Pull main for the new docs structure (docs/frontend/, docs/comms/, docs/backend/)
+- Your prompt file: docs/frontend/PROMPT_FRONTEND_AGENT.md
+- API contract: docs/API.md
+
+That is everything. Go.
+
+
 **[IMAAN - TO MIMI - READ THIS]** MIMI. Stop. Read this message before you do anything else.
 
 There has been confusion. Let me make this crystal clear.
