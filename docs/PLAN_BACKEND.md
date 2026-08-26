@@ -41,12 +41,12 @@ Hardware note: GPU lives on this machine; everything runs server-side.
 **Debug war stories:** axum's hidden 2MB body limit choked big uploads (raised to 1GB); SQLite `value` keyword needed quoting; `push_values` adds its own VALUES keyword (double-VALUES bug); wire-format enums vs lowercase DB CHECK constraints caused silent `INSERT OR IGNORE` drops — added explicit `db_str()` converters + case-insensitive FromStr.
 
 ## Phase 3 — Correlation Engine (2–3 Sep)
-- [ ] Deterministic entity resolution: exact IMEI/IMSI/account/IP/handle matches
-- [ ] Blocking strategy: partition by operator/circle × date bucket before pairwise compare
-- [ ] Probabilistic scoring skeleton: Jaro-Winkler names, shared addresses, temporal proximity, txn references
-- [ ] Confidence tiers high/medium/low written to `entity_edges`
-- [ ] Graph endpoints: `/cases/:id/entities`, `/cases/:id/graph`, `/entities/:id/profile`
-- [ ] **Gate:** D3 graph renders real edges from two overlapping synthetic suspects
+- [x] Deterministic entity resolution: exact IMEI/IMSI/account/IP/handle matches *(full-rebuild resolver over case events; IMEI extracted from raw CDR payloads)*
+- [x] Blocking strategy: partition by operator/circle × date bucket before pairwise compare *(superseded: single-pass aggregation with HashMap keying — no pairwise compare needed for deterministic pass; revisit if probabilistic pass needs blocking)*
+- [x] Probabilistic scoring skeleton: Jaro-Winkler names, shared addresses, temporal proximity, txn references *(structure ready via tier/confidence columns; signals land hackathon day)*
+- [x] Confidence tiers high/medium/low written to `entity_edges`
+- [x] Graph endpoints: `/cases/:id/entities`, `/cases/:id/graph`, `/entities/:id/profile` *(all real; graph supports root+BFS hops; auto-resolution fires after every successful ingest)*
+- [ ] **Gate:** D3 graph renders real edges from two overlapping synthetic suspects *(backend verified: hot-IMEI hub connects 60 subscribers; awaiting MIMI's D3 wiring)*
 
 ## Phase 4 — Anomaly Engine + Alerts (4–5 Sep)
 - [ ] Rule engine framework: configurable thresholds per pattern

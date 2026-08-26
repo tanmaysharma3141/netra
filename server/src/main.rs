@@ -2,6 +2,7 @@ mod auth;
 mod db;
 mod ingest;
 mod models;
+mod resolve;
 mod routes;
 mod state;
 mod stub_data;
