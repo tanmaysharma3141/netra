@@ -20,6 +20,7 @@ import { TimelinePanel } from "@/components/timeline/timeline-panel"
 import { IngestPanel } from "@/components/ingest/ingest-panel"
 import { GraphPanel } from "@/components/graph/graph-panel"
 import { MapPanel } from "@/components/map/map-panel"
+import { ReportsPanel } from "@/components/reports/reports-panel"
 import { useAuth } from "@/auth/AuthContext"
 
 interface TabDef {
@@ -144,6 +145,8 @@ export function CaseDetailScreen() {
               </div>
             ) : tab.value === "ingest" ? (
               <IngestPanel caseId={kase.id} />
+            ) : tab.value === "reports" ? (
+              <ReportsPanel caseId={kase.id} />
             ) : (
               <Card className="border-dashed">
                 <CardContent className="flex flex-col items-center justify-center py-14 text-center">
