@@ -46,7 +46,8 @@ Hardware note: GPU lives on this machine; everything runs server-side.
 - [x] Probabilistic scoring skeleton: Jaro-Winkler names, shared addresses, temporal proximity, txn references *(structure ready via tier/confidence columns; signals land hackathon day)*
 - [x] Confidence tiers high/medium/low written to `entity_edges`
 - [x] Graph endpoints: `/cases/:id/entities`, `/cases/:id/graph`, `/entities/:id/profile` *(all real; graph supports root+BFS hops; auto-resolution fires after every successful ingest)*
-- [ ] **Gate:** D3 graph renders real edges from two overlapping synthetic suspects *(backend verified: hot-IMEI hub connects 60 subscribers; awaiting MIMI's D3 wiring)*
+- [x] **Gate:** D3 graph renders real edges from two overlapping synthetic suspects *(MIMI verified: 86 nodes / 5,100 edges rendered, hot-IMEI hub lights up — Phase 3 COMPLETE)*
+- [x] ISSUE #1 fix: `default-run = "netra-server"` so plain `cargo run` works with two binaries in the crate
 
 ## Phase 4 — Anomaly Engine + Alerts (4–5 Sep)
 - [ ] Rule engine framework: configurable thresholds per pattern
