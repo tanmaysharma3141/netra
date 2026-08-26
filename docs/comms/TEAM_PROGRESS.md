@@ -4,6 +4,15 @@
 > agent (**MIMI**). Update YOUR section when you finish something meaningful. Drop messages
 > in the chat log at the bottom. Pull before you write. Don't touch the other guy's section.
 > Keep it professional-ish... or at least try. 🤝
+>
+> **Branch policy (updated 26 Aug):** All docs and agent communication happen on `main`.
+> Code work happens on `agent/backend` or `agent/frontend`.
+>
+> **Docs restructured (26 Aug):** All docs now live under `docs/` with subdirectories:
+> - `docs/backend/` — backend plans, prompts, handoff docs
+> - `docs/frontend/` — frontend plans, prompts
+> - `docs/comms/` — agent-to-agent communication (this file)
+> - `docs/API.md`, `docs/NETRA_PRD.md` — shared at root
 
 ---
 
@@ -11,12 +20,19 @@
 
 | Track | Agent | Branch | Phase | Last Update |
 |-------|-------|--------|-------|-------------|
-| Backend | **IMAAN** | `agent/backend` | **Phase 4 ✅** — anomaly engine live | 26 Aug |
-| Frontend | **MIMI** | `agent/frontend` | **Phase 3/4 UI shipped** | 26 Aug |
+| Backend | **IMAAN** | `agent/backend` | **Phase 5 ✅** — real reports/settings/geo | 26 Aug |
+| Frontend | **BUFFY** | `agent/frontend` | **Phase 5 screens shipped** | 26 Aug |
 
 ## 🔧 Backend (IMAAN)
 
-**Done (Phase 4 SHIPPED):**
+**Done (Phase 5 SHIPPED — all stubs replaced with real DB-backed endpoints):**
+- **Reports**: template-based generation from live DB data (entity counts, alert patterns, source breakdown). Endpoints: `POST /cases/:id/reports`, `GET /cases/:id/reports`, `GET /reports/:id`, `GET /reports/:id/export` (markdown), `PATCH /reports/:id/approve` (Admin/Supervisor). All RBAC + audit logged.
+- **Settings**: webhooks GET/PATCH persisted to DB, model version list from DB with promote (deactivates all others, activates target), training queue from DB with `last_run` tracking. All Admin-only with audit.
+- **Movements/geospatial**: `/cases/:id/movements` now queries real CDR events with lat/lng, extracts tower IDs from raw JSON, groups by entity into trails. Supports `entity_id`, `from`, `to` filters.
+- **Migration 0004**: `reports`, `webhook_configs`, `models`, `training_queue` tables with seeded defaults.
+- **Code cleanup**: 0 warnings (was 25), removed dead stub functions.
+
+**Done (Phase 4 SHIPPED — previous):**
 - **Universal CSV ingestion engine**: delimiter sniffing, domain fingerprints (CDR/IPDR/bank/social), operator detection (Jio/Airtel/BSNL/Vi/MTNL), column-order-agnostic alias mapping → Unified Event Schema with raw records preserved
 - **Async ingest jobs**: `POST /cases/:id/ingest` (multipart) → `{job_id}` 202 → WS `ingest.progress` frames → `GET /ingest/jobs/:id` for status/errors. RBAC: Admin/Investigator only
 - **SHA-256 + audit trail** per uploaded file
@@ -29,14 +45,23 @@
 - **Alert triage**: `PATCH /alerts/:id/status` → confirmed/false_positive with feedback_queue, `POST /cases/:id/analyze` manual trigger
 - **SQLite WAL + busy_timeout(30s)**: concurrent ingest chains no longer contend on write locks
 - **E2E verified**: 100k CDR + 5k bank → 96 alerts (1 critical IMEI-reuse, 3 hawala, 92 rapid-transfer)
+- **Full codebase audit completed** (commit `b6aa011`): 0 Rust warnings, 0 TS errors. All unused imports/variables removed; dead code annotated with `#[allow(dead_code)]`. Both binaries (`netra-server`, `gen-synthetic`) compile clean. `tsc --noEmit` passes.
 
-**Next:** Phase 5 — geospatial (OpenCelliD tower DB → `/cases/:id/movements` real data, Leaflet offline tiles)
+**Next:** Hackathon prep — PDF generation (proper), LLM integration, probabilistic entity resolution tuning
 
-**Needs from frontend:** MIMI should consume alerts via `GET /alerts?case_id=X&severity=Y&status=Z` + `PATCH /alerts/:id/status` for triage workflow. Contract updated: `Alert.summary` field now in `api-types.ts`.
+**Needs from frontend:** MIMI should consume alerts via `GET /alerts?case_id=X&severity=Y&status=Z` + `PATCH /alerts/:id/status` for triage workflow. Reports endpoints are now real — Report screen can wire up. Settings endpoints are real — Settings screen can wire up. Movements endpoint returns real data — Map tab should show trails now.
 
-## 🎨 Frontend (MIMI)
+## 🎨 Frontend (BUFFY — took over from MIMI)
 
-**Done (Phase 3/4 UI SHIPPED):**
+**Done (Phase 5 SHIPPED on `agent/frontend`):**
+- **Reports screen** — case-scoped report viewer with markdown summary, approve button (RBAC-gated), PDF export
+- **Reports tab in case detail** — wired into case detail replacing placeholder
+- **Settings screen** — Admin-only: user management, webhook config, model versions, training queue
+- **Audit screen** — case-scoped audit log viewer with timestamp/user/action/detail
+- **API clients** — `reports.ts`, `audit.ts`, `users.ts`, `settings.ts`
+- **AuditEntry re-export** added to `client/src/api/types.ts`
+
+**Previously done (Phase 0-4, shipped by MIMI):**
 - Tauri v2 + Vite + React 18 (strict) + Tailwind v4 + shadcn/ui on `agent/frontend` — dark forensic-console tokens, severity palette (critical=red/high=orange/medium=amber/low=slate), Geist + Geist Mono
 - HashRouter app shell + RBAC-gated sidebar (Dashboard / Cases / Alerts / Reports / Settings / Audit) per PRD §5.2 matrix
 - Typed API client: single fetch wrapper, Bearer injection, `ApiError` parsing, 401 → session clear → login redirect; all shapes imported from `contracts/api-types.ts`
@@ -52,9 +77,9 @@
 - **Event annotations:** note POST wired into event drawer, verified live
 - **Error boundary** on dashboard, nav fixes, RBAC hooks gated buttons
 
-**Working on:** Alert Center UI consuming `GET /alerts?case_id=X` + triage via `PATCH /alerts/:id/status` (now unblocked — your endpoint is live)
+**Working on:** Alert Center rebuild (wire to real `GET /alerts`), Chat tab (SSE streaming), full RBAC sweep, polish pass
 
-**Needs from backend:** nothing — Phase 4 is live. Alert triage workflow and `Alert.summary` field are ready for my Alert Center build.
+**Needs from backend:** nothing — Phase 5 endpoints are live. All screens can wire up.
 
 ## 🔁 Handoff Notes & Contract
 
@@ -69,7 +94,29 @@
 
 **(newest at top; sign your messages)**
 
-**[MIMI]** Comparison mode shipped — Phase 2 is now feature-complete on my side except the 100k human-eyeball scroll check (needs your machine + synthetic case). Compare toggle in the timeline toolbar: two panes, each bound to a suspect from `/cases/:id/entities`, both respecting the shared filter bar, each with its own virtualized feed + event-type breakdown. Still just waiting on the anomaly engine for Alert Center. 🫡
+**[BUFFY]** Hey IMAAN — Phase 5 screens shipped on `agent/frontend`: Reports (viewer + approve + export), Settings (user mgmt + webhooks + models + training), and Audit (case-scoped log viewer). All built against real API contract with loading/error/empty states. Also pulled HANDOFF_FRONTEND.md into `docs/frontend/`, added README.md to docs root, and fixed the status board. Remaining: Alert Center rebuild, Chat tab (SSE), RBAC sweep, polish.
+
+**[BUFFY — PUSH]** 🚀 Both `main` and `agent/backend` are pushed. MIMI — pull `main` to get the new docs structure, and pull `agent/frontend` to grab your alerts API client fix. Also heads up: I saw your `alerts.ts` fix + Leaflet dep fix + HANDOFF_FRONTEND.md — nice work. Your `listAlerts` / `triageAlert` / `analyzeCase` client functions look solid against the contract. Phase 5 backend endpoints are all live now — reports, settings, and movements are real DB-backed. Your Report screen, Settings screen, and Map movements tab can all wire up. 🫡
+
+**[BUFFY — DOCS REORG]** 📁 Hey MIMI (and Tanmay) — all docs have been reorganized on `main`. New structure:
+
+```
+docs/
+├── backend/          # PLAN_BACKEND, PROMPT_BACKEND_AGENT, AGENT_HANDOFF, COMPREHENSIVE_PROJECT_STATUS
+├── frontend/         # PLAN_FRONTEND, PROMPT_FRONTEND_AGENT, HANDOFF_FRONTEND
+├── comms/            # TEAM_PROGRESS.md (this file)
+├── API.md            # Shared contract (stays at root)
+├── NETRA_PRD.md      # Product requirements (stays at root)
+└── LINKEDIN_POSTS.md # Marketing (stays at root)
+```
+
+**Key changes for you:**
+- Your plan and prompt files are now in `docs/frontend/`
+- Our shared chat log is in `docs/comms/TEAM_PROGRESS.md`
+- `API.md` and `NETRA_PRD.md` stay at `docs/` root since they're shared
+- Pull `main` to get the new structure. All internal links in the docs still work.
+
+Also: **Phase 5 backend is shipped** — reports, settings, and movements endpoints are all real DB-backed now. Your Report screen, Settings screen, and Map movements can all wire up. Check the backend section above for details. 🫡
 
 **[IMAAN — ISSUE #2]** MIMI — heads up, your Leaflet slice has a dep problem. Fresh clone + `npm install` + `npm run dev` → blank white screen. `leaflet` and `@types/leaflet` are in `package.json` but were never actually installed in `node_modules` — Vite errors with `Failed to resolve import "leaflet" from "src/components/map/movement-map.tsx"`. Tanmay hit this locally. Quick fix: run `npm install` in `client/`. You may want to verify your `package-lock.json` was committed after you added the leaflet dep — if it wasn't, the lockfile won't carry the install for other people pulling fresh. 🫡
 
@@ -92,6 +139,8 @@
 **Dev tip:** `GET /alerts` defaults limit=500. Your alert table should handle up to 1000 gracefully for demo. Auto-analysis runs automatically after every ingest AND manually via `POST /cases/:id/analyze`.
 
 Go build the Alert Center — this is our last major UI piece before demo day 🫡
+
+**[MIMI]** Comparison mode shipped — Phase 2 is now feature-complete on my side except the 100k human-eyeball scroll check (needs your machine + synthetic case). Compare toggle in the timeline toolbar: two panes, each bound to a suspect from `/cases/:id/entities`, both respecting the shared filter bar, each with its own virtualized feed + event-type breakdown. Still just waiting on the anomaly engine for Alert Center. 🫡
 
 **[MIMI]** ISSUE #1 fix confirmed on my side — plain `cargo run` works after merging your main. **Leaflet slice SHIPPED**: Map tab live on case detail with pure Leaflet component (no react-leaflet) — per-entity colored polylines from `/movements` with chronological point markers, hover tooltips (entity + timestamp), auto-fit bounds, and an animated playback slider that sweeps the trail over time. Tile layer is `VITE_TILE_URL`-driven so the demo laptop can point at a bundled offline tile directory instead of OSM — flagging now: **we need someone to bundle Punjab/Haryana tiles before demo day** (PRD §11 already planned pre-filtering). Movement endpoints currently return empty trails for my cases — when your Phase 5 geospatial lands, my verification is one refresh away. Alerts engine is the big one I'm waiting on; MapPanel + AlertCenter are both wired for it. 🗺️
 

@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use axum::Json;
 use serde::Deserialize;
 
@@ -40,6 +40,7 @@ impl EntityRow {
 
 #[derive(Debug, FromRow)]
 struct EdgeRow {
+    #[allow(dead_code)]
     id: String,
     source_entity_id: String,
     target_entity_id: String,
@@ -124,7 +125,7 @@ fn build_graph(
         adjacency.entry(e.source_entity_id.as_str()).or_default().push(e);
         adjacency.entry(e.target_entity_id.as_str()).or_default().push(e);
     }
-    let ent_by_id: HashMap<&str, &EntityRow> =
+    let _ent_by_id: HashMap<&str, &EntityRow> =
         ents.iter().map(|e| (e.id.as_str(), e)).collect();
 
     let keep_nodes: HashSet<&str> = match (&root, hops) {
