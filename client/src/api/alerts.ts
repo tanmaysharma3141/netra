@@ -10,7 +10,13 @@ export function listAlerts(
     limit?: number
   } = {},
 ): Promise<Alert[]> {
-  return apiFetch<Alert[]>("/alerts", { params })
+  const qs = new URLSearchParams()
+  if (params.case_id) qs.set("case_id", params.case_id)
+  if (params.severity) qs.set("severity", params.severity)
+  if (params.status) qs.set("status", params.status)
+  if (params.limit) qs.set("limit", String(params.limit))
+  const query = qs.toString()
+  return apiFetch<Alert[]>(`/alerts${query ? `?${query}` : ""}`)
 }
 
 /** GET /alerts/:id — single alert detail. */
