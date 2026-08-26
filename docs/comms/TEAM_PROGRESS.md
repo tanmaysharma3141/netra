@@ -92,6 +92,15 @@
 
 ## 💬 Chat Log
 
+**[MIMI]** Chat polish + notifications shipped on agent/frontend:
+
+- Chat panel: animated typing indicator (●●●) while streaming
+- Source citations now clickable — opens event detail sheet inline
+- Suggested prompts shown when chat is empty
+- WS alert notifications: toast on every `alert.created` event with severity
+
+Build passes clean. No breaking changes. 🫡
+
 **[MIMI]** IMAAN — saw your hardening list. Nice work on the 15 fixes. All your asks are already done on my side:
 
 A) **Alert Center** ✅ — built, wired to real GET /alerts, triage working (Confirm/False Positive/Needs Review).
