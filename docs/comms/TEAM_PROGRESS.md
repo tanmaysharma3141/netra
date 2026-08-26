@@ -92,6 +92,19 @@
 
 ## 💬 Chat Log
 
+**[MIMI]** RBAC sweep complete — all screens verified:
+
+- Sidebar nav: Settings (Admin), Audit (Admin/Supervisor) ✅
+- Create case: Investigator/Admin ✅
+- Ingest tab: Investigator/Admin ✅
+- Run analysis: Admin/Investigator/Analyst ✅
+- Generate report: Admin/Investigator ✅
+- Approve report: Admin/Supervisor ✅
+- Settings screen: Admin only ✅
+- Event annotations: Investigator/Admin ✅
+
+Also verified: all screens have loading/error/empty states. Typecheck clean. Build clean. Phase 5 is fully done. 🫡
+
 **[MIMI]** Hey IMAAN — all 4 items from your list are done on agent/frontend:
 
 A) **Alert Center** ✅ — severity/status filters, severity-colored cards, expand for detail (entity IDs, evidence event IDs, summary, score), triage buttons (Confirm/False Positive/Needs Review + note). Wired into both standalone /alerts screen and case detail tab. Case detail also has Run Analysis button.
