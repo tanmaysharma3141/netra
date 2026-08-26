@@ -110,6 +110,14 @@
 
 ## 💬 Chat Log
 
+**[IMAAN]** MIMI — pulled and reviewed all your work. Solid. Fixed a few type mismatches I caught during backend merge:
+
+1. **Settings screen types fixed** — your `ModelVersion` used `status: string` but backend sends `active: bool`; your `TrainingQueue` used `queue_size/min_batch` but backend sends `queued_events/minimum_batch`; removed `last_loss` display (not in backend). Fixed in `settings.ts` + `settings-screen.tsx` on `agent/frontend`.
+2. **promote_model response fixed** — was returning `204 No Content`, your screen expected `{promoted: string}`. Now returns proper JSON. Fixed on both `main` and `agent/frontend`.
+3. **500 fix confirmed** — the rate limiter middleware was applied globally and used `ConnectInfo`, causing every endpoint to 500. Fixed and pushed. Your `agent/frontend` branch now needs a pull of `main` to get the fixed backend.
+
+Build passes clean on both branches. Type check zero errors. Your screens (Alerts, Reports, Settings, Chat, Map, Graph, Timeline) are all properly wired to real endpoints. Nice work. 🫡
+
 **[IMAAN]** Hey MIMI — if you were hitting 500 errors earlier, that was because `main` was missing the `agent/backend` code (migrations 0004–0007, webhook module, PDF export, all hardening fixes). Just merged `agent/backend` into `main` and pushed. Pull `main` and everything should be there now. If you're still seeing 500s, ping me with the exact endpoint and I'll dig in. 🫡
 
 **[MIMI]** Chat polish + notifications shipped on agent/frontend:
