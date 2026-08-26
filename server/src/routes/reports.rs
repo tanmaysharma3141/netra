@@ -279,32 +279,32 @@ pub async fn export_pdf(
     _authed: Authed,
     Path(id): Path<Uuid>,
 ) -> Result<Response, Response> {
-    let row: Option<String> = sqlx::query_scalar(
-        "SELECT summary_md FROM reports WHERE id = ?1",
+    let row: Option<(String, String)> = sqlx::query_as(
+        "SELECT summary_md, title FROM reports r JOIN cases c ON r.case_id = c.id WHERE r.id = ?1",
     )
     .bind(id.to_string())
     .fetch_optional(&state.pool)
     .await
     .map_err(internal)?;
 
-    let Some(md) = row else {
+    let Some((md, title)) = row else {
         return Err(
             ApiError::new("not_found", "report not found").into_response(StatusCode::NOT_FOUND),
         );
     };
 
-    // Export as markdown file (PDF generation requires external tooling)
-    let body = md.into_bytes();
+    let pdf_bytes = crate::pdf::generate_report_pdf(&title, &md);
+
     Ok((
         StatusCode::OK,
         [
-            (header::CONTENT_TYPE, "text/markdown; charset=utf-8"),
+            (header::CONTENT_TYPE, "application/pdf"),
             (
                 header::CONTENT_DISPOSITION,
-                "attachment; filename=\"netra-report.md\"",
+                "attachment; filename=\"netra-report.pdf\"",
             ),
         ],
-        body,
+        pdf_bytes,
     )
         .into_response())
 }

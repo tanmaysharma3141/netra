@@ -3,6 +3,7 @@ mod auth;
 mod db;
 mod ingest;
 mod models;
+mod pdf;
 mod ratelimit;
 mod resolve;
 mod routes;
