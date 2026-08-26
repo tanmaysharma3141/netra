@@ -35,16 +35,10 @@ impl AlertRow {
             severity: self.severity.parse().unwrap_or(Severity::Low),
             score: self.score as u8,
             status: self.status.parse().unwrap_or(crate::models::AlertStatus::Open),
-            entity_ids: self
-                .entity_ids
-                .split('|')
-                .filter_map(|s| Uuid::parse_str(s).ok())
-                .collect(),
-            evidence_event_ids: self
-                .evidence_event_ids
-                .split('|')
-                .filter_map(|s| Uuid::parse_str(s).ok())
-                .collect(),
+            entity_ids: serde_json::from_str(&self.entity_ids)
+                .unwrap_or_default(),
+            evidence_event_ids: serde_json::from_str(&self.evidence_event_ids)
+                .unwrap_or_default(),
             summary: self.summary.clone(),
             created_at: self.created_at.clone(),
         }

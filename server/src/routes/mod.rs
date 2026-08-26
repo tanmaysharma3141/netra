@@ -17,7 +17,7 @@ use axum::Router;
 
 use crate::state::AppState;
 
-pub fn router(state: AppState) -> Router {
+pub fn router(state: AppState, login_limiter: std::sync::Arc<crate::ratelimit::RateLimiter>) -> Router {
     let api = Router::new()
         .route("/auth/login", post(auth::login))
         .route("/auth/logout", post(auth::logout))
@@ -29,7 +29,7 @@ pub fn router(state: AppState) -> Router {
         .route("/cases", get(cases::list).post(cases::create))
         .route(
             "/cases/{id}",
-            get(cases::detail).patch(cases::update),
+            get(cases::detail).patch(cases::update).delete(cases::delete),
         )
         .route("/cases/{id}/audit", get(cases::audit))
         .route("/cases/{id}/events", get(events::list))
@@ -69,4 +69,8 @@ pub fn router(state: AppState) -> Router {
         .route("/ws", get(ws::handler))
         .nest("/api/v1", api)
         .with_state(state)
+        .layer(axum::middleware::from_fn_with_state(
+            login_limiter,
+            crate::ratelimit::login_rate_limit,
+        ))
 }

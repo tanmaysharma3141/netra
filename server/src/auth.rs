@@ -52,6 +52,36 @@ pub fn verify_token(token: &str, secret: &str) -> Option<Claims> {
     .map(|data| data.claims)
 }
 
+/// Check if a token's jti has been revoked.
+pub async fn is_token_revoked(pool: &sqlx::SqlitePool, jti: &str) -> bool {
+    sqlx::query_scalar::<_, i64>("SELECT 1 FROM revoked_tokens WHERE jti = ?1 LIMIT 1")
+        .bind(jti)
+        .fetch_optional(pool)
+        .await
+        .unwrap_or(None)
+        .is_some()
+}
+
+/// Revoke a token by inserting its jti into the revoked_tokens table.
+pub async fn revoke_token(pool: &sqlx::SqlitePool, jti: &str) {
+    let _ = sqlx::query(
+        "INSERT OR IGNORE INTO revoked_tokens (jti, revoked_at) VALUES (?1, ?2)",
+    )
+    .bind(jti)
+    .bind(chrono::Utc::now().to_rfc3339())
+    .execute(pool)
+    .await;
+}
+
+/// Cleanup expired revoked tokens (older than 9 hours).
+pub async fn cleanup_revoked_tokens(pool: &sqlx::SqlitePool) {
+    let cutoff = (chrono::Utc::now() - chrono::Duration::hours(9)).to_rfc3339();
+    let _ = sqlx::query("DELETE FROM revoked_tokens WHERE revoked_at < ?1")
+        .bind(cutoff)
+        .execute(pool)
+        .await;
+}
+
 fn unauthorized(message: &str) -> Response {
     ApiError::new("unauthorized", message).into_response(StatusCode::UNAUTHORIZED)
 }
@@ -65,6 +95,8 @@ pub struct Authed {
     #[allow(dead_code)]
     pub username: String,
     pub role: Role,
+    /// The token's jti claim — used for revocation on logout
+    pub jti: String,
 }
 
 impl FromRequestParts<AppState> for Authed {
@@ -97,6 +129,11 @@ impl FromRequestParts<AppState> for Authed {
         let claims =
             verify_token(&token, &state.jwt_secret).ok_or_else(|| unauthorized("invalid token"))?;
 
+        // Check if token has been revoked (logout)
+        if is_token_revoked(&state.pool, &claims.jti).await {
+            return Err(unauthorized("token revoked"));
+        }
+
         let row: Option<(String, String, i64)> =
             sqlx::query_as("SELECT username, role, active FROM users WHERE id = ?1")
                 .bind(&claims.sub)
@@ -115,6 +152,7 @@ impl FromRequestParts<AppState> for Authed {
             id: claims.sub,
             username,
             role: role.parse().map_err(|_| unauthorized("bad role"))?,
+            jti: claims.jti,
         })
     }
 }

@@ -15,6 +15,14 @@ pub struct MovementQuery {
     pub entity_id: Option<String>,
     pub from: Option<String>,
     pub to: Option<String>,
+    #[serde(default = "default_limit")]
+    pub limit: usize,
+    #[serde(default)]
+    pub offset: usize,
+}
+
+fn default_limit() -> usize {
+    500
 }
 
 #[derive(Debug, sqlx::FromRow)]
@@ -70,7 +78,10 @@ pub async fn movements(
             qb.push(" AND ts <= ").push_bind(t.to_rfc3339());
         }
     }
-    qb.push(" ORDER BY ts ASC LIMIT 5000");
+    qb.push(" ORDER BY ts ASC LIMIT ")
+        .push_bind((q.limit.min(5000) as i64).to_string())
+        .push(" OFFSET ")
+        .push_bind(q.offset as i64);
 
     let rows: Vec<LocationRow> = qb
         .build_query_as()
