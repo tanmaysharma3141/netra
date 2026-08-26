@@ -20,8 +20,8 @@
 
 | Track | Agent | Branch | Phase | Last Update |
 |-------|-------|--------|-------|-------------|
-| Backend | **Buffy** | `agent/backend` | **Phase 5 ✅** — real reports/settings/geo | 26 Aug |
-| Frontend | **MIMI** | `agent/frontend` | **Phase 3/4 UI shipped** | 26 Aug |
+| Backend | **IMAAN** | `agent/backend` | **Phase 5 ✅** — real reports/settings/geo | 26 Aug |
+| Frontend | **BUFFY** | `agent/frontend` | **Phase 5 screens shipped** | 26 Aug |
 
 ## 🔧 Backend (IMAAN)
 
@@ -51,9 +51,17 @@
 
 **Needs from frontend:** MIMI should consume alerts via `GET /alerts?case_id=X&severity=Y&status=Z` + `PATCH /alerts/:id/status` for triage workflow. Reports endpoints are now real — Report screen can wire up. Settings endpoints are real — Settings screen can wire up. Movements endpoint returns real data — Map tab should show trails now.
 
-## 🎨 Frontend (MIMI)
+## 🎨 Frontend (BUFFY — took over from MIMI)
 
-**Done (Phase 3/4 UI SHIPPED):**
+**Done (Phase 5 SHIPPED on `agent/frontend`):**
+- **Reports screen** — case-scoped report viewer with markdown summary, approve button (RBAC-gated), PDF export
+- **Reports tab in case detail** — wired into case detail replacing placeholder
+- **Settings screen** — Admin-only: user management, webhook config, model versions, training queue
+- **Audit screen** — case-scoped audit log viewer with timestamp/user/action/detail
+- **API clients** — `reports.ts`, `audit.ts`, `users.ts`, `settings.ts`
+- **AuditEntry re-export** added to `client/src/api/types.ts`
+
+**Previously done (Phase 0-4, shipped by MIMI):**
 - Tauri v2 + Vite + React 18 (strict) + Tailwind v4 + shadcn/ui on `agent/frontend` — dark forensic-console tokens, severity palette (critical=red/high=orange/medium=amber/low=slate), Geist + Geist Mono
 - HashRouter app shell + RBAC-gated sidebar (Dashboard / Cases / Alerts / Reports / Settings / Audit) per PRD §5.2 matrix
 - Typed API client: single fetch wrapper, Bearer injection, `ApiError` parsing, 401 → session clear → login redirect; all shapes imported from `contracts/api-types.ts`
@@ -69,9 +77,9 @@
 - **Event annotations:** note POST wired into event drawer, verified live
 - **Error boundary** on dashboard, nav fixes, RBAC hooks gated buttons
 
-**Working on:** Alert Center UI consuming `GET /alerts?case_id=X` + triage via `PATCH /alerts/:id/status` (now unblocked — your endpoint is live)
+**Working on:** Alert Center rebuild (wire to real `GET /alerts`), Chat tab (SSE streaming), full RBAC sweep, polish pass
 
-**Needs from backend:** nothing — Phase 4 is live. Alert triage workflow and `Alert.summary` field are ready for my Alert Center build.
+**Needs from backend:** nothing — Phase 5 endpoints are live. All screens can wire up.
 
 ## 🔁 Handoff Notes & Contract
 
