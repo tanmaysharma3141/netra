@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TimelinePanel } from "@/components/timeline/timeline-panel"
 import { IngestPanel } from "@/components/ingest/ingest-panel"
+import { GraphPanel } from "@/components/graph/graph-panel"
 import { useAuth } from "@/auth/AuthContext"
 
 interface TabDef {
@@ -131,6 +132,10 @@ export function CaseDetailScreen() {
             {tab.value === "timeline" ? (
               <div className="h-[calc(100vh-22rem)] min-h-96">
                 <TimelinePanel caseId={kase.id} />
+              </div>
+            ) : tab.value === "graph" ? (
+              <div className="h-[calc(100vh-22rem)] min-h-96">
+                <GraphPanel caseId={kase.id} />
               </div>
             ) : tab.value === "ingest" ? (
               <IngestPanel caseId={kase.id} />

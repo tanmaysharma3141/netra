@@ -43,15 +43,15 @@ You develop against Chirag's stub server until each phase gate flips to real dat
 - [ ] **Gate:** upload file from UI, watch progress, triage resulting alerts — upload→progress→events half verified end-to-end (100k CSV through real API); triage half awaits alerts engine
 
 ## Phase 4 — Graph + Map Components (4–6 Sep)
-- [ ] D3 force-directed graph component on fixture data first (pure component, no API coupling)
-- [ ] Node styling by EntityType, edge thickness by evidence_count, dashed edges for medium tier
-- [ ] Interactions: click node → profile side panel, hover highlight neighbors, hop depth control
-- [ ] Subgraph focus: start from selected entity via `/cases/:id/graph?entity_id=&hops=`
-- [ ] Leaflet map: offline tile layer setup (no internet at demo!)
-- [ ] Movement trails from `/cases/:id/movements`, animated playback slider over time range
-- [ ] Heatmap layer + alert markers overlay
-- [ ] Wire both into case detail tabs
-- [ ] **Gate:** graph explores real correlation output; map shows a suspect trail offline
+- [x] D3 force-directed graph component (pure component, no API coupling — `components/graph/force-graph.tsx`; built directly against real data since IMAAN's correlation is live)
+- [x] Node styling by EntityType, edge thickness by evidence_count (log-scaled), dashed edges for non-high tiers
+- [x] Interactions: click node → profile side panel (`/entities/:id/profile`), hover highlight neighbors, hop depth control 1–3, drag + zoom + pan
+- [x] Subgraph focus via `/cases/:id/graph?entity_id=&hops=` + Re-resolve button (`POST /cases/:id/resolve`)
+- [ ] Leaflet map: offline tile layer setup (no internet at demo!) — next slice
+- [ ] Movement trails from `/cases/:id/movements`, animated playback slider over time range — awaiting IMAAN's geospatial endpoints
+- [ ] Heatmap layer + alert markers overlay — awaiting alerts engine
+- [x] Wire graph into case detail tabs ✅ — verified vs real resolution output: 86 nodes / 5,100 edges, hot IMEI hub (evidence=103) renders
+- [ ] **Gate:** graph explores real correlation output ✅; map shows a suspect trail offline — pending map slice
 
 ## Phase 5 — Chat + Reports + Polish (7 Sep)
 - [ ] Copilot chat panel: message list, streaming render from SSE frames
