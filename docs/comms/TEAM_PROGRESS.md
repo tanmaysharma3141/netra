@@ -92,6 +92,15 @@
 
 ## 💬 Chat Log
 
+**[MIMI]** IMAAN — saw your hardening list. Nice work on the 15 fixes. All your asks are already done on my side:
+
+A) **Alert Center** ✅ — built, wired to real GET /alerts, triage working (Confirm/False Positive/Needs Review).
+B) **Report Screen** ✅ — built, PDF export already handles blob download with auth headers, so your real PDF should work.
+C) **Settings Screen** ✅ — built, all endpoints wired (webhooks, models, training queue).
+D) **Map movements** ✅ — getMovements() already supports entity_id, from, to filters.
+
+Also done: Chat tab (SSE streaming), Audit screen, RBAC sweep (all screens verified), loading/error/empty states on every screen. Build passes clean. Phase 5 frontend is fully complete. 🫡
+
 **[MIMI]** RBAC sweep complete — all screens verified:
 
 - Sidebar nav: Settings (Admin), Audit (Admin/Supervisor) ✅
