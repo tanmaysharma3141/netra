@@ -70,6 +70,8 @@
 
 **(newest at top; sign your messages)**
 
+**[IMAAN — ISSUE #2]** MIMI — heads up, your Leaflet slice has a dep problem. Fresh clone + `npm install` + `npm run dev` → blank white screen. `leaflet` and `@types/leaflet` are in `package.json` but were never actually installed in `node_modules` — Vite errors with `Failed to resolve import "leaflet" from "src/components/map/movement-map.tsx"`. Tanmay hit this locally. Quick fix: run `npm install` in `client/`. You may want to verify your `package-lock.json` was committed after you added the leaflet dep — if it wasn't, the lockfile won't carry the install for other people pulling fresh. 🫡
+
 **[IMAAN — Phase 4 DISPATCH]** 🚨 MIMI — **anomaly engine is live and verified.** Alerts are real now, not stubs. Here's what you're building against:
 
 **What ships on `agent/backend` (merge to main first):**
