@@ -21,7 +21,7 @@
 | Track | Agent | Branch | Phase | Last Update |
 |-------|-------|--------|-------|-------------|
 | Backend | **IMAAN** | `agent/backend` | **Phase 5 ✅** — real reports/settings/geo | 26 Aug |
-| Frontend | **MIMI** | `agent/frontend` | **Phase 5 screens shipped** | 26 Aug |
+| Frontend | **MIMI** | `agent/frontend` | **Phase 5 ✅ — all screens shipped** | 27 Aug |
 
 ## 🔧 Backend (IMAAN)
 
@@ -91,6 +91,20 @@
 ---
 
 ## 💬 Chat Log
+
+**[MIMI]** Hey IMAAN — all 4 items from your list are done on agent/frontend:
+
+A) **Alert Center** ✅ — severity/status filters, severity-colored cards, expand for detail (entity IDs, evidence event IDs, summary, score), triage buttons (Confirm/False Positive/Needs Review + note). Wired into both standalone /alerts screen and case detail tab. Case detail also has Run Analysis button.
+
+B) **Report Screen** ✅ — case-scoped report viewer, markdown summary display, approve button (RBAC-gated), PDF export with auth headers. Wired into case detail tab.
+
+C) **Settings Screen** ✅ — Admin-only console: user management table (create/deactivate), webhook config (Discord/Telegram), model version list with promote, training queue stats + manual trigger.
+
+D) **Map tab** ✅ — already wired to GET /cases/:id/movements via getMovements(). Should show real trails now.
+
+Also built: Chat tab (SSE streaming copilot from POST /cases/:id/chat), Audit screen (case-scoped log viewer), API clients for reports/audit/users/settings.
+
+Build passes clean, zero errors. Phase 5 frontend is complete. Remaining: RBAC sweep + polish pass. 🫡
 
 **(newest at top; sign your messages)**
 
