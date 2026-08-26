@@ -159,7 +159,8 @@ pub fn demo_alerts() -> Vec<Alert> {
             status: AlertStatus::Open,
             entity_ids: vec![],
             evidence_event_ids: vec![],
-            created_at: chrono::Utc::now() - Duration::hours(3),
+            summary: "Stub: IMEI reused across multiple subscriber lines".into(),
+            created_at: (chrono::Utc::now() - Duration::hours(3)).to_rfc3339(),
         },
         Alert {
             id: Uuid::new_v4(),
@@ -170,7 +171,8 @@ pub fn demo_alerts() -> Vec<Alert> {
             status: AlertStatus::Reviewing,
             entity_ids: vec![],
             evidence_event_ids: vec![],
-            created_at: chrono::Utc::now() - Duration::hours(8),
+            summary: "Stub: structured small deposits aggregating quickly".into(),
+            created_at: (chrono::Utc::now() - Duration::hours(8)).to_rfc3339(),
         },
         Alert {
             id: Uuid::new_v4(),
@@ -181,7 +183,8 @@ pub fn demo_alerts() -> Vec<Alert> {
             status: AlertStatus::Open,
             entity_ids: vec![],
             evidence_event_ids: vec![],
-            created_at: chrono::Utc::now() - Duration::hours(20),
+            summary: "Stub: linked phones went quiet simultaneously".into(),
+            created_at: (chrono::Utc::now() - Duration::hours(20)).to_rfc3339(),
         },
     ]
 }

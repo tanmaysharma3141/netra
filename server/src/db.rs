@@ -76,7 +76,12 @@ pub struct AuditRow {
 
 pub async fn init(database_url: &str) -> Result<SqlitePool, Box<dyn std::error::Error>> {
     let opts: SqliteConnectOptions = database_url.parse()?;
-    let opts = opts.create_if_missing(true).foreign_keys(true);
+    let opts = opts
+        .create_if_missing(true)
+        .foreign_keys(true)
+        .busy_timeout(std::time::Duration::from_secs(30))
+        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+        .synchronous(sqlx::sqlite::SqliteSynchronous::Normal);
     let pool = SqlitePoolOptions::new()
         .max_connections(8)
         .connect_with(opts)

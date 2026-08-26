@@ -79,6 +79,7 @@ export interface Alert {
   pattern: string; // e.g. "imei_reuse", "hawala_signature"
   severity: Severity;
   score: number; // 0-100 anomaly score
+  summary: string; // human-readable alert summary
   status: AlertStatus;
   entity_ids: string[];
   evidence_event_ids: string[];
