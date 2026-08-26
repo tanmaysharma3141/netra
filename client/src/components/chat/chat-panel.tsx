@@ -1,11 +1,22 @@
 import { useRef, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { Bot, Send, User, RefreshCw } from "lucide-react"
+import { Bot, ExternalLink, Send, User, RefreshCw } from "lucide-react"
 import { API_BASE_URL } from "@/lib/env"
 import { getToken } from "@/lib/secureStore"
-import { Badge } from "@/components/ui/badge"
+import { apiFetch } from "@/api/client"
+import type { Event } from "@/api/types"
+import { SOURCE_LABELS } from "@/lib/severity"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface ChatMessage {
   role: "user" | "assistant"
@@ -13,23 +24,37 @@ interface ChatMessage {
   sources?: string[]
 }
 
+const SUGGESTED_PROMPTS = [
+  "What are the most suspicious entities in this case?",
+  "Show me all calls between the top 3 entities",
+  "Summarize the alert patterns found",
+  "What timeline anomalies exist?",
+]
+
 export function ChatPanel({ caseId }: { caseId: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  async function sendMessage() {
-    const question = input.trim()
-    if (!question || isStreaming) return
+  function scrollToBottom() {
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
+    }, 50)
+  }
+
+  async function sendMessage(question?: string) {
+    const text = (question ?? input).trim()
+    if (!text || isStreaming) return
 
     setInput("")
-    setMessages((prev) => [...prev, { role: "user", content: question }])
+    setMessages((prev) => [...prev, { role: "user", content: text }])
     setIsStreaming(true)
 
-    // Add placeholder for assistant response
     const assistantIndex = messages.length + 1
     setMessages((prev) => [...prev, { role: "assistant", content: "" }])
+    scrollToBottom()
 
     try {
       const token = await getToken()
@@ -39,27 +64,22 @@ export function ChatPanel({ caseId }: { caseId: string }) {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ question }),
+        body: JSON.stringify({ question: text }),
       })
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`)
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
       const reader = res.body?.getReader()
       if (!reader) throw new Error("No response body")
 
       const decoder = new TextDecoder()
       let buffer = ""
-      let sources: string[] = []
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
         buffer += decoder.decode(value, { stream: true })
-
-        // Process SSE lines
         const lines = buffer.split("\n")
         buffer = lines.pop() ?? ""
 
@@ -67,54 +87,40 @@ export function ChatPanel({ caseId }: { caseId: string }) {
           const trimmed = line.trim()
           if (!trimmed || !trimmed.startsWith("data: ")) continue
 
-          const jsonStr = trimmed.slice(6)
           try {
-            const frame = JSON.parse(jsonStr)
+            const frame = JSON.parse(trimmed.slice(6))
 
             if (frame.delta) {
               setMessages((prev) => {
                 const updated = [...prev]
                 const last = updated[assistantIndex]
                 if (last) {
-                  updated[assistantIndex] = {
-                    ...last,
-                    content: last.content + frame.delta,
-                  }
+                  updated[assistantIndex] = { ...last, content: last.content + frame.delta }
                 }
                 return updated
               })
+              scrollToBottom()
             }
 
             if (frame.sources) {
-              sources = frame.sources
               setMessages((prev) => {
                 const updated = [...prev]
                 const last = updated[assistantIndex]
                 if (last) {
-                  updated[assistantIndex] = { ...last, sources }
+                  updated[assistantIndex] = { ...last, sources: frame.sources }
                 }
                 return updated
               })
-            }
-
-            if (frame.done) {
-              // Stream complete
             }
           } catch {
             // Skip malformed frames
           }
         }
       }
-
-      // Scroll to bottom
-      setTimeout(() => {
-        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" })
-      }, 50)
     } catch (err) {
       toast.error("Chat request failed", {
         description: err instanceof Error ? err.message : "Unexpected error.",
       })
-      // Remove the empty assistant message on error
       setMessages((prev) => prev.slice(0, -1))
     } finally {
       setIsStreaming(false)
@@ -133,6 +139,20 @@ export function ChatPanel({ caseId }: { caseId: string }) {
               Ask questions about this case — the AI will search events, entities,
               and alerts to answer.
             </p>
+            <div className="mt-4 flex max-w-md flex-wrap justify-center gap-2">
+              {SUGGESTED_PROMPTS.map((prompt) => (
+                <Button
+                  key={prompt}
+                  variant="outline"
+                  size="sm"
+                  className="h-auto max-w-[200px] text-wrap text-left text-xs"
+                  onClick={() => void sendMessage(prompt)}
+                  disabled={isStreaming}
+                >
+                  {prompt}
+                </Button>
+              ))}
+            </div>
           </div>
         ) : (
           messages.map((msg, i) => (
@@ -152,18 +172,27 @@ export function ChatPanel({ caseId }: { caseId: string }) {
                     : "bg-secondary"
                 }`}
               >
-                <p className="whitespace-pre-wrap">{msg.content || (isStreaming && i === messages.length - 1 ? "…" : "")}</p>
+                <p className="whitespace-pre-wrap">
+                  {msg.content || (isStreaming && i === messages.length - 1 ? (
+                    <span className="inline-flex gap-0.5">
+                      <span className="animate-pulse">●</span>
+                      <span className="animate-pulse [animation-delay:0.2s]">●</span>
+                      <span className="animate-pulse [animation-delay:0.4s]">●</span>
+                    </span>
+                  ) : "")}
+                </p>
                 {msg.sources && msg.sources.length > 0 ? (
                   <div className="mt-2 flex flex-wrap gap-1">
                     <span className="font-mono text-[9px] text-muted-foreground">Sources:</span>
                     {msg.sources.map((src) => (
-                      <Badge
+                      <button
                         key={src}
-                        variant="outline"
-                        className="font-mono text-[9px]"
+                        onClick={() => setSelectedEventId(src)}
+                        className="inline-flex items-center gap-0.5 font-mono text-[9px] text-chart-1 underline-offset-2 hover:underline"
                       >
                         {src.slice(0, 8)}
-                      </Badge>
+                        <ExternalLink className="size-2.5" aria-hidden />
+                      </button>
                     ))}
                   </div>
                 ) : null}
@@ -206,6 +235,91 @@ export function ChatPanel({ caseId }: { caseId: string }) {
           )}
         </Button>
       </div>
+
+      {/* Event detail sheet for source citations */}
+      <EventDetailSheet
+        eventId={selectedEventId}
+        onClose={() => setSelectedEventId(null)}
+      />
+    </div>
+  )
+}
+
+function EventDetailSheet({
+  eventId,
+  onClose,
+}: {
+  eventId: string | null
+  onClose: () => void
+}) {
+  const eventQuery = useQuery({
+    queryKey: ["event", eventId],
+    queryFn: () => apiFetch<Event>(`/events/${encodeURIComponent(eventId!)}`),
+    enabled: eventId !== null,
+  })
+
+  return (
+    <Sheet open={eventId !== null} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+        {eventQuery.isPending ? (
+          <div className="space-y-3">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+        ) : eventQuery.isError ? (
+          <div className="text-sm text-muted-foreground">
+            Failed to load event.
+          </div>
+        ) : eventQuery.data ? (
+          <>
+            <SheetHeader>
+              <SheetTitle className="font-mono text-sm">
+                {eventQuery.data.event_type} · {eventQuery.data.entity_type}
+              </SheetTitle>
+              <SheetDescription className="font-mono text-xs">
+                {eventQuery.data.id}
+              </SheetDescription>
+            </SheetHeader>
+            <dl className="mt-4 space-y-2">
+              <Field
+                label="Timestamp"
+                value={new Date(eventQuery.data.timestamp).toLocaleString("en-IN")}
+                mono
+              />
+              <Field label="Entity" value={`${eventQuery.data.entity_type} — ${eventQuery.data.entity_id}`} mono />
+              <Field label="Source" value={SOURCE_LABELS[eventQuery.data.source_type]} />
+              {eventQuery.data.value !== null ? (
+                <Field label="Value" value={eventQuery.data.value.toLocaleString("en-IN")} mono />
+              ) : null}
+              {eventQuery.data.location ? (
+                <Field
+                  label="Location"
+                  value={`${eventQuery.data.location.lat.toFixed(5)}, ${eventQuery.data.location.lng.toFixed(5)}`}
+                  mono
+                />
+              ) : null}
+            </dl>
+            <div className="mt-4">
+              <p className="mb-1.5 font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
+                Raw record
+              </p>
+              <pre className="border-border bg-card max-h-60 overflow-auto rounded-sm border p-3 font-mono text-[11px] leading-relaxed">
+                {JSON.stringify(eventQuery.data.raw, null, 2)}
+              </pre>
+            </div>
+          </>
+        ) : null}
+      </SheetContent>
+    </Sheet>
+  )
+}
+
+function Field({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex gap-3">
+      <dt className="text-muted-foreground w-24 shrink-0 text-xs">{label}</dt>
+      <dd className={`min-w-0 break-all text-xs ${mono ? "font-mono" : ""}`}>{value}</dd>
     </div>
   )
 }

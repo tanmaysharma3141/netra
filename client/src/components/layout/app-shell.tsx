@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/auth/AuthContext"
 import type { Permission } from "@/lib/rbac"
+import { AlertNotifications } from "@/components/alerts/alert-notifications"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -44,6 +45,7 @@ export function AppShell() {
 
   return (
     <div className="flex h-screen overflow-hidden">
+      <AlertNotifications />
       <aside className="flex w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
         <div className="flex items-center gap-2 px-4 py-4">
           <Eye className="size-5 text-primary" aria-hidden />
