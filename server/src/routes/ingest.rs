@@ -168,6 +168,19 @@ async fn run_job(
             .await;
 
             tracing::info!(file = %file_name, parsed = res.parsed, domain = res.domain, "ingest done");
+
+            let resolve_pool = state.pool.clone();
+            tokio::spawn(async move {
+                match crate::resolve::resolve_case(&resolve_pool, case_id).await {
+                    Ok(s) => tracing::info!(
+                        entities = s.entities, edges = s.edges,
+                        device_links = s.device_links, comm_links = s.communication_links,
+                        "auto-resolution complete"
+                    ),
+                    Err(e) => tracing::error!(err = %e, "auto-resolution failed"),
+                }
+            });
+
             let _ = std::fs::remove_file(&path);
         }
         Err(e) => fail_job(&state.pool, job_id, vec![e]).await,

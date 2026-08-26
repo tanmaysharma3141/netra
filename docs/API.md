@@ -68,9 +68,10 @@ Events are paginated (`limit` default 200, max 1000), ordered by timestamp desc.
 | Method | Path | Notes |
 |--------|------|-------|
 | GET | /cases/:id/entities | All resolved entities + link tiers |
-| GET | /cases/:id/graph | Adjacency list for D3: `{ nodes: GraphNode[], edges: GraphEdge[] }`. Query: `entity_id`, `hops` (default 2) |
-| GET | /entities/:id/profile | Full entity profile across domains |
-| PATCH | /entities/:id | Tags / annotations |
+| GET | /cases/:id/graph | Adjacency list for D3: `{ nodes: GraphNode[], edges: GraphEdge[] }`. Query: `entity_id`, `hops` (default 2, BFS from root when entity_id given) |
+| POST | /cases/:id/resolve | Re-run entity resolution for case (Admin/Investigator) → `{ entities, edges, device_links, communication_links }`. Runs automatically after each successful ingest |
+| GET | /entities/:id/profile | Full profile: `{ entity, stats: { events, first_seen, last_seen }, connections: [{ link_type, tier, confidence, evidence_count, other_entity_id, other_identifier, other_type }] }` |
+| PATCH | /entities/:id | Tags / annotations. Body `{ "tags": ["suspect"] }`. Investigator/Admin only |
 
 ## Alerts
 
