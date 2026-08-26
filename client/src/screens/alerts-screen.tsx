@@ -1,11 +1,15 @@
-import { PlaceholderScreen } from "./placeholder-screen"
+import { AlertsPanel } from "@/components/alerts/alerts-panel"
 
 export function AlertsScreen() {
   return (
-    <PlaceholderScreen
-      title="Alert Center"
-      description="Cross-case alerts, triage workflow and evidence review."
-      phase="PHASE 3 · INGEST + ALERTS"
-    />
+    <div className="mx-auto max-w-6xl p-6">
+      <header className="mb-6">
+        <h1 className="text-lg font-semibold">Alert Center</h1>
+        <p className="text-sm text-muted-foreground">
+          Cross-case alerts with severity filtering, triage workflow, and evidence review.
+        </p>
+      </header>
+      <AlertsPanel />
+    </div>
   )
 }

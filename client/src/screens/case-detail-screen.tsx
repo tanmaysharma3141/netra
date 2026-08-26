@@ -21,6 +21,8 @@ import { IngestPanel } from "@/components/ingest/ingest-panel"
 import { GraphPanel } from "@/components/graph/graph-panel"
 import { MapPanel } from "@/components/map/map-panel"
 import { ReportsPanel } from "@/components/reports/reports-panel"
+import { AlertsPanel } from "@/components/alerts/alerts-panel"
+import { ChatPanel } from "@/components/chat/chat-panel"
 import { useAuth } from "@/auth/AuthContext"
 
 interface TabDef {
@@ -145,6 +147,10 @@ export function CaseDetailScreen() {
               </div>
             ) : tab.value === "ingest" ? (
               <IngestPanel caseId={kase.id} />
+            ) : tab.value === "alerts" ? (
+              <AlertsPanel caseId={kase.id} />
+            ) : tab.value === "chat" ? (
+              <ChatPanel caseId={kase.id} />
             ) : tab.value === "reports" ? (
               <ReportsPanel caseId={kase.id} />
             ) : (
