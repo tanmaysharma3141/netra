@@ -29,7 +29,7 @@ You develop against Chirag's stub server until each phase gate flips to real dat
 - [x] Collapsible event groups (cluster events within configurable window) — flat/5m/15m/1h/24h toggles, per-cluster collapse
 - [x] Event detail drawer: full metadata + raw record viewer + annotation input (`POST /events/:id/notes` per IMAAN's contract update; RBAC-gated to Investigator/Admin via `data.upload`; cache invalidation + optimistic drawer update)
 - [x] Pagination/infinite scroll honoring limit/offset contract (200/page, auto-fetch near viewport end)
-- [ ] Side-by-side suspect comparison mode (two filtered timelines) — next slice
+- [x] Side-by-side suspect comparison mode (two filtered timelines) — Compare toggle in timeline toolbar; A/B panes with entity selectors from `/cases/:id/entities`, shared source/event/date filters, per-pane virtualized infinite lists + event-type breakdowns
 - [ ] **Gate:** scroll through a 100k-event synthetic case without jank — awaiting IMAAN's synthetic data generator
 
 ## Phase 3 — Ingest + Alerts (2–3 Sep)
@@ -47,11 +47,11 @@ You develop against Chirag's stub server until each phase gate flips to real dat
 - [x] Node styling by EntityType, edge thickness by evidence_count (log-scaled), dashed edges for non-high tiers
 - [x] Interactions: click node → profile side panel (`/entities/:id/profile`), hover highlight neighbors, hop depth control 1–3, drag + zoom + pan
 - [x] Subgraph focus via `/cases/:id/graph?entity_id=&hops=` + Re-resolve button (`POST /cases/:id/resolve`)
-- [ ] Leaflet map: offline tile layer setup (no internet at demo!) — next slice
-- [ ] Movement trails from `/cases/:id/movements`, animated playback slider over time range — awaiting IMAAN's geospatial endpoints
+- [x] Leaflet map: offline-capable tile layer (`VITE_TILE_URL` env → point demo machine at bundled tile dir; OSM default for dev)
+- [ ] Movement trails from `/cases/:id/movements` ✅ built + wired; animated playback slider over time range ✅ — **real-data verification pending** IMAAN's Phase 5 geospatial endpoints (current endpoint returns empty/stub trails)
 - [ ] Heatmap layer + alert markers overlay — awaiting alerts engine
-- [x] Wire graph into case detail tabs ✅ — verified vs real resolution output: 86 nodes / 5,100 edges, hot IMEI hub (evidence=103) renders
-- [ ] **Gate:** graph explores real correlation output ✅; map shows a suspect trail offline — pending map slice
+- [x] Wire both into case detail tabs
+- [ ] **Gate:** graph explores real correlation output ✅; map shows a suspect trail offline — component ready, needs real trail data to tick
 
 ## Phase 5 — Chat + Reports + Polish (7 Sep)
 - [ ] Copilot chat panel: message list, streaming render from SSE frames

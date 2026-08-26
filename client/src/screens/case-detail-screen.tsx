@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TimelinePanel } from "@/components/timeline/timeline-panel"
 import { IngestPanel } from "@/components/ingest/ingest-panel"
 import { GraphPanel } from "@/components/graph/graph-panel"
+import { MapPanel } from "@/components/map/map-panel"
 import { useAuth } from "@/auth/AuthContext"
 
 interface TabDef {
@@ -136,6 +137,10 @@ export function CaseDetailScreen() {
             ) : tab.value === "graph" ? (
               <div className="h-[calc(100vh-22rem)] min-h-96">
                 <GraphPanel caseId={kase.id} />
+              </div>
+            ) : tab.value === "map" ? (
+              <div className="h-[calc(100vh-22rem)] min-h-96">
+                <MapPanel caseId={kase.id} />
               </div>
             ) : tab.value === "ingest" ? (
               <IngestPanel caseId={kase.id} />
