@@ -8,6 +8,7 @@ pub struct AppState {
     pub pool: SqlitePool,
     pub tx: broadcast::Sender<WsEnvelope>,
     pub jwt_secret: std::sync::Arc<String>,
+    pub pipeline_lock: std::sync::Arc<tokio::sync::Mutex<()>>,
 }
 
 impl AppState {
@@ -17,6 +18,7 @@ impl AppState {
             pool,
             tx,
             jwt_secret: std::sync::Arc::new(jwt_secret),
+            pipeline_lock: std::sync::Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 

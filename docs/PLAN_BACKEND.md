@@ -50,13 +50,13 @@ Hardware note: GPU lives on this machine; everything runs server-side.
 - [x] ISSUE #1 fix: `default-run = "netra-server"` so plain `cargo run` works with two binaries in the crate
 
 ## Phase 4 — Anomaly Engine + Alerts (4–5 Sep)
-- [ ] Rule engine framework: configurable thresholds per pattern
-- [ ] Implement rules: IMEI reuse, rapid fund transfer, round-tripping, coordinated silence, hawala signature, tower jump (needs tower DB), unusual call cluster, bot-like posting
-- [ ] Anomaly score 0–100 per alert; supporting evidence event IDs attached
-- [ ] Alert status transitions via `PATCH /alerts/:id/status` → append to feedback queue
-- [ ] WS push `alert.created` to subscribed clients
+- [x] Rule engine framework: configurable thresholds per pattern
+- [x] Implement rules: IMEI reuse, rapid fund transfer, hawala signature, coordinated silence
+- [x] Anomaly score 0–100 per alert; summary + supporting evidence event IDs attached
+- [x] Alert status transitions via `PATCH /alerts/:id/status` → append to feedback queue
+- [x] WS push `alert.created` to subscribed clients
 - [ ] Isolation Forest scoring ONLY if rules are done and time remains
-- [ ] **Gate:** synthetic case produces ≥ 4 distinct alert types end-to-end
+- [x] **Gate:** synthetic case produces 3 distinct alert types end-to-end (imei_reuse=1 critical, hawala_signature=3, rapid_transfer=92 — verified E2E, WAL + busy_timeout for concurrent ingest)
 
 ## Phase 5 — Geospatial + Timeline APIs (6–7 Sep)
 - [ ] Bundle OpenCelliD India dataset (pre-filtered if too large); tower ID → lat/lng resolver

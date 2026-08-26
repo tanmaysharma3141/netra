@@ -79,6 +79,7 @@ Events are paginated (`limit` default 200, max 1000), ordered by timestamp desc.
 |--------|------|-------|
 | GET | /alerts | Cross-case list. Query: `case_id`, `severity`, `status` |
 | GET | /alerts/:id | Detail incl. supporting evidence event IDs |
+| POST | /cases/:id/analyze | Manual anomaly analysis trigger (Admin/Investigator) → `{ alerts_raised, by_rule }` |
 | PATCH | /alerts/:id/status | `{ status: "open"|"reviewing"|"confirmed"|"false_positive", note?: string }` → queues feedback for retraining |
 
 ## Ingestion

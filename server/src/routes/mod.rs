@@ -46,6 +46,7 @@ pub fn router(state: AppState) -> Router {
         .route("/alerts", get(alerts::list))
         .route("/alerts/{id}", get(alerts::detail))
         .route("/alerts/{id}/status", patch(alerts::update_status))
+        .route("/cases/{id}/analyze", post(alerts::analyze))
         .route("/cases/{id}/ingest", post(ingest::upload))
         .route("/ingest/jobs/{id}", get(ingest::job))
         .route("/cases/{id}/movements", get(crate::routes::geo::movements))

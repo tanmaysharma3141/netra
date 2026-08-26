@@ -99,6 +99,17 @@ str_enum!(Severity {
     Critical => "critical",
 });
 
+impl Severity {
+    pub fn db_str(&self) -> &'static str {
+        match self {
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+            Self::Critical => "critical",
+        }
+    }
+}
+
 str_enum!(AlertStatus {
     Open => "open",
     Reviewing => "reviewing",
@@ -291,7 +302,8 @@ pub struct Alert {
     pub status: AlertStatus,
     pub entity_ids: Vec<Id>,
     pub evidence_event_ids: Vec<Id>,
-    pub created_at: DateTime<Utc>,
+    pub summary: String,
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

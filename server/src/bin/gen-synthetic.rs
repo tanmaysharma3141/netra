@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::Write as _;
 
 struct Lcg(u64);
@@ -35,10 +36,17 @@ fn gen_cdr(out_path: &str, rows: u64) {
     numbers.sort();
     numbers.dedup();
 
-    let imeis: Vec<String> = (0..25)
+    let imeis: Vec<String> = (0..55)
         .map(|i| format!("35{i:013}"))
         .collect();
     let hot_imei = "354809104512345".to_string();
+
+    let suspects: Vec<usize> = (0..6).map(|i| (i * 7) % numbers.len()).collect();
+    let mut personal: HashMap<usize, String> = HashMap::new();
+    for (i, n) in numbers.iter().enumerate() {
+        personal.insert(i, imeis[i % imeis.len()].clone());
+        let _ = n;
+    }
 
     let base_ts = 1_756_000_000u64;
     let span = 30 * 86_400;
@@ -51,8 +59,10 @@ fn gen_cdr(out_path: &str, rows: u64) {
     .unwrap();
 
     for i in 0..rows {
-        let a = &numbers[rng.range(numbers.len() as u64) as usize];
-        let b = &numbers[rng.range(numbers.len() as u64) as usize];
+        let a_idx = rng.range(numbers.len() as u64) as usize;
+        let b_idx = rng.range(numbers.len() as u64) as usize;
+        let a = &numbers[a_idx];
+        let b = &numbers[b_idx];
         let ts = base_ts + (i * span / rows.max(1)) + rng.range(60);
         let dt = epoch_fmt(ts);
         let dur = if rng.range(10) == 0 { rng.range(1800) } else { rng.range(120) };
@@ -63,10 +73,10 @@ fn gen_cdr(out_path: &str, rows: u64) {
         };
         let tower = format!("JIO-PB-{}", rng.range(400));
         let last_tower = format!("JIO-PB-{}", rng.range(400));
-        let imei = if rng.range(20) == 0 {
+        let imei = if suspects.contains(&a_idx) && rng.range(10) < 7 {
             &hot_imei
         } else {
-            &imeis[rng.range(imeis.len() as u64) as usize]
+            &personal[&a_idx]
         };
         writeln!(
             f,

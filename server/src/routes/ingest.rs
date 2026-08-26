@@ -170,13 +170,40 @@ async fn run_job(
             tracing::info!(file = %file_name, parsed = res.parsed, domain = res.domain, "ingest done");
 
             let resolve_pool = state.pool.clone();
+            let analyze_state = state.clone();
             tokio::spawn(async move {
+                let _guard = analyze_state.pipeline_lock.lock().await;
                 match crate::resolve::resolve_case(&resolve_pool, case_id).await {
-                    Ok(s) => tracing::info!(
-                        entities = s.entities, edges = s.edges,
-                        device_links = s.device_links, comm_links = s.communication_links,
-                        "auto-resolution complete"
-                    ),
+                    Ok(s) => {
+                        tracing::info!(
+                            entities = s.entities, edges = s.edges,
+                            device_links = s.device_links, comm_links = s.communication_links,
+                            "auto-resolution complete"
+                        );
+                        match crate::anomaly::analyze_case(&resolve_pool, case_id).await {
+                            Ok(stats) => {
+                                tracing::info!(alerts = stats.alerts_raised, "auto-analysis complete");
+                                let open: Vec<(String,)> = sqlx::query_as(
+                                    "SELECT id FROM alerts WHERE case_id = ?1 AND status = 'open' ORDER BY created_at DESC LIMIT 10",
+                                )
+                                .bind(case_id.to_string())
+                                .fetch_all(&analyze_state.pool)
+                                .await
+                                .unwrap_or_default();
+                                for (aid,) in open {
+                                    if let Ok(uuid) = Uuid::parse_str(&aid) {
+                                        if let Some(alert) = crate::routes::alerts::fetch_alert(&analyze_state.pool, uuid).await {
+                                            analyze_state.publish(
+                                                format!("case:{case_id}"),
+                                                crate::models::WsEvent::AlertCreated { payload: alert },
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                            Err(e) => tracing::error!(err = %e, "auto-analysis failed"),
+                        }
+                    }
                     Err(e) => tracing::error!(err = %e, "auto-resolution failed"),
                 }
             });
