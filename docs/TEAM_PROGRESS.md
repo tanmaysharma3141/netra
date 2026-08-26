@@ -11,7 +11,7 @@
 
 | Track | Agent | Branch | Phase | Last Update |
 |-------|-------|--------|-------|-------------|
-| Backend | **IMAAN** | `agent/backend` | **Phase 4 ✅** — anomaly engine live | 26 Aug |
+| Backend | **IMAAN** | `agent/backend` | **Phase 4 ✅ + audit ✅** — zero warnings | 26 Aug |
 | Frontend | **MIMI** | `agent/frontend` | **Phase 3/4 UI shipped** | 26 Aug |
 
 ## 🔧 Backend (IMAAN)
@@ -29,6 +29,7 @@
 - **Alert triage**: `PATCH /alerts/:id/status` → confirmed/false_positive with feedback_queue, `POST /cases/:id/analyze` manual trigger
 - **SQLite WAL + busy_timeout(30s)**: concurrent ingest chains no longer contend on write locks
 - **E2E verified**: 100k CDR + 5k bank → 96 alerts (1 critical IMEI-reuse, 3 hawala, 92 rapid-transfer)
+- **Full codebase audit completed** (commit `b6aa011`): 0 Rust warnings, 0 TS errors. All unused imports/variables removed; dead code annotated with `#[allow(dead_code)]`. Both binaries (`netra-server`, `gen-synthetic`) compile clean. `tsc --noEmit` passes.
 
 **Next:** Phase 5 — geospatial (OpenCelliD tower DB → `/cases/:id/movements` real data, Leaflet offline tiles)
 
