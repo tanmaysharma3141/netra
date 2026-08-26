@@ -62,6 +62,7 @@ pub(crate) fn unauthorized_response(message: &str) -> Response {
 
 pub struct Authed {
     pub id: String,
+    #[allow(dead_code)]
     pub username: String,
     pub role: Role,
 }
@@ -133,6 +134,7 @@ impl Authed {
 }
 
 pub struct LoginOutcome {
+    #[allow(dead_code)]
     pub ok: bool,
     pub status: StatusCode,
     pub code: &'static str,

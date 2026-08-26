@@ -2,7 +2,7 @@ use uuid::Uuid;
 
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use axum::Json;
 use serde::Deserialize;
 use sqlx::FromRow;

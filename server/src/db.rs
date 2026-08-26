@@ -15,6 +15,7 @@ pub struct UserRow {
     pub active: i64,
     pub failed_attempts: i64,
     pub locked_until: Option<String>,
+    #[allow(dead_code)]
     pub created_at: String,
 }
 
@@ -65,6 +66,7 @@ impl CaseRow {
 }
 
 #[derive(Debug, FromRow)]
+#[allow(dead_code)]
 pub struct AuditRow {
     pub id: String,
     pub user_id: String,
@@ -90,6 +92,7 @@ pub async fn init(database_url: &str) -> Result<SqlitePool, Box<dyn std::error::
 
     seed_admin(&pool).await?;
     seed_demo_case(&pool).await?;
+    seed_settings(&pool).await?;
     Ok(pool)
 }
 
@@ -179,4 +182,39 @@ pub fn source_counts(rows: Vec<(String, i64)>) -> std::collections::HashMap<Sour
         }
     }
     map
+}
+
+async fn seed_settings(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
+    let webhook_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM webhook_configs")
+        .fetch_one(pool)
+        .await?;
+    if webhook_count == 0 {
+        sqlx::query("INSERT INTO webhook_configs (id, discord_url, telegram_bot_token, telegram_chat_id, updated_at) VALUES ('00000000-0000-0000-0000-000000000001', NULL, NULL, NULL, ?1)")
+            .bind(chrono::Utc::now().to_rfc3339())
+            .execute(pool)
+            .await?;
+        tracing::info!("seeded webhook_configs");
+    }
+    let model_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM models")
+        .fetch_one(pool)
+        .await?;
+    if model_count == 0 {
+        let now = chrono::Utc::now().to_rfc3339();
+        sqlx::query("INSERT INTO models (id, version, active, trained_at, base_model, created_at) VALUES (?1, 'v1.0-base', 1, ?2, 'mistral-7b-instruct-v0.3', ?2)")
+            .bind(Uuid::new_v4().to_string())
+            .bind(&now)
+            .execute(pool)
+            .await?;
+        tracing::info!("seeded default model v1.0-base");
+    }
+    let queue_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM training_queue")
+        .fetch_one(pool)
+        .await?;
+    if queue_count == 0 {
+        sqlx::query("INSERT INTO training_queue (id, queued_events, minimum_batch, last_run) VALUES ('00000000-0000-0000-0000-000000000001', 0, 50, NULL)")
+            .execute(pool)
+            .await?;
+        tracing::info!("seeded training_queue");
+    }
+    Ok(())
 }
