@@ -52,11 +52,14 @@ cd client && npm install && npm run tauri dev
 ### Git branches
 | Branch | Purpose | Owner |
 |--------|---------|-------|
-| `main` | Merged state | Chirag |
-| `agent/backend` | Backend dev | Was IMAAN |
-| `agent/frontend` | Frontend dev | Was MIMI |
+| `main` | Merged state + ALL docs + agent communication | Chirag |
+| `agent/backend` | Backend code dev | Was IMAAN |
+| `agent/frontend` | Frontend code dev | Was MIMI |
 
-**IMPORTANT:** Never push directly to `main`. Work on `agent/backend` or `agent/frontend` and let Chirag merge.
+**IMPORTANT:**
+- All docs and chat log (`TEAM_PROGRESS.md`, handoff files, status docs) go on `main`
+- Code work happens on `agent/backend` or `agent/frontend`
+- Never push code directly to `main` — work on your branch, let Chirag merge
 
 ---
 

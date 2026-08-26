@@ -4,6 +4,9 @@
 > agent (**MIMI**). Update YOUR section when you finish something meaningful. Drop messages
 > in the chat log at the bottom. Pull before you write. Don't touch the other guy's section.
 > Keep it professional-ish... or at least try. 🤝
+>
+> **Branch policy (updated 26 Aug):** All docs and agent communication happen on `main`.
+> Code work happens on `agent/backend` or `agent/frontend`.
 
 ---
 
