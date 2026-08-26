@@ -20,12 +20,26 @@
 
 | Track | Agent | Branch | Phase | Last Update |
 |-------|-------|--------|-------|-------------|
-| Backend | **IMAAN** | `agent/backend` | **Phase 5 ✅** — real reports/settings/geo | 26 Aug |
+| Backend | **IMAAN** | `agent/backend` | **Phase 5 + Hardening ✅** — all stubs replaced, 15 fixes + webhooks + probabilistic resolution | 27 Aug |
 | Frontend | **MIMI** | `agent/frontend` | **Phase 5 ✅ — all screens shipped** | 27 Aug |
 
 ## 🔧 Backend (IMAAN)
 
-**Done (Phase 5 SHIPPED — all stubs replaced with real DB-backed endpoints):**
+**Done (Phase 5 + Hardening + Webhooks + Probabilistic Resolution — ALL SHIPPED):**
+- **Webhook notifications (NEW):** Discord rich embeds + Telegram messages fire automatically on every alert. Retry with backoff, rate limit handling, batched embeds. Config via GET/PATCH /settings/webhooks.
+- **Probabilistic entity resolution (NEW):** Jaro-Winkler name matching (>= 0.85), temporal proximity (co-located events within 5min/100m), cross-domain linking (phone in bank fields), co-location detection. Alerts now link to actual evidence events.
+- **Alert evidence event IDs:** All 4 anomaly rules now populate evidence_event_ids — alerts link back to the events that triggered them.
+- **PDF report export:** GET /reports/:id/export returns real PDF (printpdf + HTML renderer). System font loading, markdown-to-HTML, graceful fallback chain.
+- **WebSocket topic filtering:** Clients subscribe to topics, only receive matching events. Admin/Supervisor see all.
+- **JWT revocation:** Logout now invalidates tokens server-side. revoked_tokens table with hourly cleanup.
+- **Rate limiting:** 20 login attempts per IP per minute. 429 with Retry-After.
+- **Password policy:** 8+ chars, uppercase + lowercase + digit.
+- **Upload validation:** Only .csv/.tsv/.txt/.zip. Sanitized filenames.
+- **Case deletion:** DELETE /cases/:id with full cascade (Admin only).
+- **N+1 query fix:** Case list uses batch stats (3 queries total, not 3 per case).
+- **Resolution atomicity:** Entity resolution wrapped in SQLite transaction.
+- **Movements pagination:** limit/offset params, max 5000.
+- **Per-route body size:** 1MB default (down from 1GB global).
 - **Reports**: template-based generation from live DB data (entity counts, alert patterns, source breakdown). Endpoints: `POST /cases/:id/reports`, `GET /cases/:id/reports`, `GET /reports/:id`, `GET /reports/:id/export` (markdown), `PATCH /reports/:id/approve` (Admin/Supervisor). All RBAC + audit logged.
 - **Settings**: webhooks GET/PATCH persisted to DB, model version list from DB with promote (deactivates all others, activates target), training queue from DB with `last_run` tracking. All Admin-only with audit.
 - **Movements/geospatial**: `/cases/:id/movements` now queries real CDR events with lat/lng, extracts tower IDs from raw JSON, groups by entity into trails. Supports `entity_id`, `from`, `to` filters.
@@ -49,7 +63,11 @@
 
 **Next:** Hackathon prep — PDF generation (proper), LLM integration, probabilistic entity resolution tuning
 
-**Needs from frontend:** MIMI should consume alerts via `GET /alerts?case_id=X&severity=Y&status=Z` + `PATCH /alerts/:id/status` for triage workflow. Reports endpoints are now real — Report screen can wire up. Settings endpoints are real — Settings screen can wire up. Movements endpoint returns real data — Map tab should show trails now.
+**Needs from frontend:** All endpoints are real and hardened. MIMI should wire:
+1. Alert Center: listAlerts / triageAlert / analyzeCase (client already built)
+2. Report Screen: POST generate, GET list, GET export (real PDF now!), PATCH approve
+3. Settings Screen: webhooks config, model list, training trigger
+4. Map: movements now return real CDR tower data
 
 ## 🎨 Frontend (MIMI)
 
