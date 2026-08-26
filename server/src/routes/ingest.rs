@@ -217,6 +217,7 @@ async fn run_job(
                                 .fetch_all(&analyze_state.pool)
                                 .await
                                 .unwrap_or_default();
+                                let mut webhook_ids = Vec::new();
                                 for (aid,) in open {
                                     if let Ok(uuid) = Uuid::parse_str(&aid) {
                                         if let Some(alert) = crate::routes::alerts::fetch_alert(&analyze_state.pool, uuid).await {
@@ -224,8 +225,13 @@ async fn run_job(
                                                 format!("case:{case_id}"),
                                                 crate::models::WsEvent::AlertCreated { payload: alert },
                                             );
+                                            webhook_ids.push(uuid);
                                         }
                                     }
+                                }
+                                // Fire webhook notifications
+                                if !webhook_ids.is_empty() {
+                                    crate::webhook::notify_new_alerts(analyze_state.pool.clone(), case_id, webhook_ids);
                                 }
                             }
                             Err(e) => tracing::error!(err = %e, "auto-analysis failed"),

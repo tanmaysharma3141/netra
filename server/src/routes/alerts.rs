@@ -189,12 +189,19 @@ async fn publish_new_alerts(state: &AppState, case_id: Uuid) {
     .await
     .unwrap_or_default();
 
-    for (id,) in rows {
-        if let Ok(aid) = Uuid::parse_str(&id) {
+    let mut alert_ids = Vec::new();
+    for (id,) in &rows {
+        if let Ok(aid) = Uuid::parse_str(id) {
             if let Some(alert) = fetch_alert(&state.pool, aid).await {
                 state.publish(format!("case:{case_id}"), WsEvent::AlertCreated { payload: alert });
+                alert_ids.push(aid);
             }
         }
+    }
+
+    // Fire webhook notifications (non-blocking)
+    if !alert_ids.is_empty() {
+        crate::webhook::notify_new_alerts(state.pool.clone(), case_id, alert_ids);
     }
 }
 
