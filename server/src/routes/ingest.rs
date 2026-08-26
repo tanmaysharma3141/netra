@@ -2,7 +2,7 @@ use std::path::Path as StdPath;
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use axum::Json;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
@@ -249,15 +249,6 @@ async fn insert_events(
     }
     Ok(total)
 }
-
-fn json_str<T: serde::Serialize>(v: &T) -> String {
-    serde_json::to_string(v)
-        .unwrap_or_default()
-        .trim_matches('"')
-        .to_string()
-}
-#[allow(dead_code)]
-fn _unused(_: ()) {}
 
 async fn set_status(pool: &sqlx::SqlitePool, job_id: Uuid, status: &str) {
     let _ = sqlx::query("UPDATE ingest_jobs SET status=?2 WHERE id=?1")

@@ -10,7 +10,9 @@ use crate::stub_data;
 #[derive(Debug, Deserialize)]
 pub struct MovementQuery {
     pub entity_id: Option<String>,
+    #[allow(dead_code)]
     pub from: Option<String>,
+    #[allow(dead_code)]
     pub to: Option<String>,
 }
 

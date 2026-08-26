@@ -13,6 +13,7 @@ pub struct ResolveStats {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct Ev {
     entity_type: String,
     entity_id: String,
@@ -27,6 +28,7 @@ fn key(t: &str, id: &str) -> EntityKey {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 enum Tier {
     High,
     Medium,

@@ -15,6 +15,7 @@ pub struct UserRow {
     pub active: i64,
     pub failed_attempts: i64,
     pub locked_until: Option<String>,
+    #[allow(dead_code)]
     pub created_at: String,
 }
 
@@ -65,6 +66,7 @@ impl CaseRow {
 }
 
 #[derive(Debug, FromRow)]
+#[allow(dead_code)]
 pub struct AuditRow {
     pub id: String,
     pub user_id: String,
