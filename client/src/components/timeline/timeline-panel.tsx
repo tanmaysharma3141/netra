@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { toast } from "sonner"
-import { ChevronDown, ChevronRight, ListTree, MapPin, RefreshCw, Search } from "lucide-react"
+import { ChevronDown, ChevronRight, ListTree, MapPin, RefreshCw, Search, Users } from "lucide-react"
 import { listEvents, addEventNote, type EventQuery } from "@/api/events"
+import { getCaseEntities } from "@/api/entities"
 import type { Event, EventType, SourceType } from "@/api/types"
 import { SOURCE_LABELS, sourceBadgeClass } from "@/lib/severity"
 import { EVENT_TYPES, SOURCE_TYPES } from "@/lib/timeline-constants"
@@ -21,6 +22,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { ComparePane } from "@/components/timeline/compare-pane"
 
 const PAGE_LIMIT = 200
 const FETCH_THRESHOLD_ROWS = 10
@@ -83,6 +85,24 @@ export function TimelinePanel({ caseId }: { caseId: string }) {
   const [grouping, setGrouping] = useState<Grouping>("off")
   const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(new Set())
   const [selected, setSelected] = useState<Event | null>(null)
+  const [comparing, setComparing] = useState(false)
+  const [paneA, setPaneA] = useState<string | undefined>(undefined)
+  const [paneB, setPaneB] = useState<string | undefined>(undefined)
+
+  const entitiesQuery = useQuery({
+    queryKey: ["entities", caseId],
+    queryFn: () => getCaseEntities(caseId),
+    enabled: comparing,
+    staleTime: 60_000,
+  })
+  const entityOptions = useMemo(
+    () =>
+      (entitiesQuery.data ?? []).map((entity) => ({
+        id: entity.id,
+        label: entity.display_name ? `${entity.display_name} (${entity.identifier})` : entity.identifier,
+      })),
+    [entitiesQuery.data],
+  )
 
   const eventsQuery = useInfiniteQuery({
     queryKey: useMemo(() => ["events", caseId, applied], [caseId, applied]),
@@ -247,27 +267,60 @@ export function TimelinePanel({ caseId }: { caseId: string }) {
           <Search className="mr-1 size-3.5" aria-hidden />
           Apply
         </Button>
-        <div className="ml-auto flex items-center gap-1" role="group" aria-label="Cluster window">
-          <ListTree className="size-3.5 text-muted-foreground" aria-hidden />
-          {(["off", ...GROUP_WINDOWS.map((w) => w.ms)] as Grouping[]).map((g) => (
-            <Button
-              key={String(g)}
-              type="button"
-              size="sm"
-              variant={grouping === g ? "secondary" : "ghost"}
-              onClick={() => {
-                setGrouping(g)
-                setCollapsedGroups(new Set())
-              }}
-              className="h-7 px-2 font-mono text-xs"
-            >
-              {g === "off" ? "flat" : GROUP_WINDOWS.find((w) => w.ms === g)?.label}
-            </Button>
-          ))}
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={comparing ? "secondary" : "ghost"}
+            onClick={() => setComparing(!comparing)}
+            className="h-7 font-mono text-xs"
+          >
+            <Users className="mr-1.5 size-3.5" aria-hidden />
+            Compare
+          </Button>
+          {comparing ? null : (
+            <>
+              <ListTree className="size-3.5 text-muted-foreground" aria-hidden />
+              {(["off", ...GROUP_WINDOWS.map((w) => w.ms)] as Grouping[]).map((g) => (
+                <Button
+                  key={String(g)}
+                  type="button"
+                  size="sm"
+                  variant={grouping === g ? "secondary" : "ghost"}
+                  onClick={() => {
+                    setGrouping(g)
+                    setCollapsedGroups(new Set())
+                  }}
+                  className="h-7 px-2 font-mono text-xs"
+                >
+                  {g === "off" ? "flat" : GROUP_WINDOWS.find((w) => w.ms === g)?.label}
+                </Button>
+              ))}
+            </>
+          )}
         </div>
       </form>
 
-      {eventsQuery.isPending ? (
+      {comparing ? (
+        <div className="flex min-h-0 flex-1 gap-3">
+          {(["A", "B"] as const).map((side) => (
+            <ComparePane
+              key={side}
+              caseId={caseId}
+              side={side}
+              entities={entityOptions}
+              entityId={side === "A" ? paneA : paneB}
+              onEntityChange={(id) => (side === "A" ? setPaneA(id) : setPaneB(id))}
+              filters={{
+                sourceType: applied.sourceType,
+                eventType: applied.eventType,
+                from: applied.from,
+                to: applied.to,
+              }}
+            />
+          ))}
+        </div>
+      ) : eventsQuery.isPending ? (
         <div className="space-y-2" aria-label="Loading events">
           {[0, 1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="bg-muted/40 h-11 animate-pulse rounded-sm" />

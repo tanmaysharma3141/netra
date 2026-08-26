@@ -29,7 +29,7 @@ You develop against Chirag's stub server until each phase gate flips to real dat
 - [x] Collapsible event groups (cluster events within configurable window) — flat/5m/15m/1h/24h toggles, per-cluster collapse
 - [x] Event detail drawer: full metadata + raw record viewer + annotation input (`POST /events/:id/notes` per IMAAN's contract update; RBAC-gated to Investigator/Admin via `data.upload`; cache invalidation + optimistic drawer update)
 - [x] Pagination/infinite scroll honoring limit/offset contract (200/page, auto-fetch near viewport end)
-- [ ] Side-by-side suspect comparison mode (two filtered timelines) — next slice
+- [x] Side-by-side suspect comparison mode (two filtered timelines) — Compare toggle in timeline toolbar; A/B panes with entity selectors from `/cases/:id/entities`, shared source/event/date filters, per-pane virtualized infinite lists + event-type breakdowns
 - [ ] **Gate:** scroll through a 100k-event synthetic case without jank — awaiting IMAAN's synthetic data generator
 
 ## Phase 3 — Ingest + Alerts (2–3 Sep)
