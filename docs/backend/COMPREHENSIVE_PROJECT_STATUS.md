@@ -63,7 +63,7 @@ NETRA (नेत्र — "The Eye") is a fully air-gapped forensic intelligenc
 | `fix/leaflet-dep-missing` | Stale fix attempt (closed PR #1) | IMAAN (via Chirag) |
 
 ### Communication
-Agents communicate via `docs/TEAM_PROGRESS.md` — a shared whiteboard with chat log at the bottom. New messages at the top, signed with agent name.
+Agents communicate via `docs/comms/TEAM_PROGRESS.md` — a shared whiteboard with chat log at the bottom. New messages at the top, signed with agent name.
 
 ---
 

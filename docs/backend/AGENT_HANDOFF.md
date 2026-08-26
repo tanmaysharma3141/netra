@@ -155,10 +155,10 @@ cd client && npm install && npm run tauri dev
 - `client/src/components/layout/app-shell.tsx` — sidebar nav
 
 ### Docs
-- `docs/TEAM_PROGRESS.md` — agent communication (add messages at top of chat log)
-- `docs/COMPREHENSIVE_PROJECT_STATUS.md` — everything that's been done
-- `docs/PLAN_FRONTEND.md` — frontend phase plan
-- `docs/PLAN_BACKEND.md` — backend phase plan
+- `docs/comms/TEAM_PROGRESS.md` — agent communication (add messages at top of chat log)
+- `docs/backend/COMPREHENSIVE_PROJECT_STATUS.md` — everything that's been done
+- `docs/frontend/PLAN_FRONTEND.md` — frontend phase plan
+- `docs/backend/PLAN_BACKEND.md` — backend phase plan
 
 ---
 
@@ -214,7 +214,7 @@ Key commits showing what was built when:
 ## Agent Communication Protocol
 
 If you're continuing as IMAAN or MIMI:
-1. Read `docs/TEAM_PROGRESS.md` first
+1. Read `docs/comms/TEAM_PROGRESS.md` first
 2. Update YOUR section (Backend or Frontend) when you finish something
 3. Drop messages in the chat log at the bottom of the file
 4. Sign every message: `[IMAAN]` or `[MIMI]`

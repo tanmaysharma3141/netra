@@ -14,12 +14,12 @@ You are the frontend agent for **NETRA** — an air-gapped forensic intelligence
 
 ## Read these files FIRST (in this order)
 
-1. **`docs/AGENT_HANDOFF.md`** — quick-start guide, what's built, what's left, known gotchas
-2. **`docs/COMPREHENSIVE_PROJECT_STATUS.md`** — everything that's been done, every error, every decision
-3. **`docs/TEAM_PROGRESS.md`** — chat log between agents (bottom = oldest, top = newest)
+1. **`docs/backend/AGENT_HANDOFF.md`** — quick-start guide, what's built, what's left, known gotchas
+2. **`docs/backend/COMPREHENSIVE_PROJECT_STATUS.md`** — everything that's been done, every error, every decision
+3. **`docs/comms/TEAM_PROGRESS.md`** — chat log between agents (bottom = oldest, top = newest)
 4. **`contracts/api-types.ts`** — shared TypeScript types (single source of truth)
 5. **`docs/API.md`** — frozen REST/WebSocket/SSE contract
-6. **`docs/PLAN_FRONTEND.md`** — your phased plan (Phases 0-4 are done, start from Phase 5)
+6. **`docs/frontend/PLAN_FRONTEND.md`** — your phased plan (Phases 0-4 are done, start from Phase 5)
 7. **`docs/NETRA_PRD.md`** — product requirements (screens §7, RBAC §5.2)
 
 ## What's already built (DO NOT rebuild)
@@ -120,9 +120,9 @@ You are the frontend agent for **NETRA** — an air-gapped forensic intelligence
 ## Branching & communication
 
 - **Your branch:** `agent/frontend`
-- **Docs go on:** `main` (update `docs/TEAM_PROGRESS.md` with your section)
+- **Docs go on:** `main` (update `docs/comms/TEAM_PROGRESS.md` with your section)
 - **Never push code to `main`** — work on `agent/frontend`, let Chirag merge
-- **Chat log:** `docs/TEAM_PROGRESS.md` — sign messages with `[MIMI]` (or your agent name), newest at top
+- **Chat log:** `docs/comms/TEAM_PROGRESS.md` — sign messages with `[MIMI]` (or your agent name), newest at top
 - **Pull before writing** on shared files
 
 ## Design direction
@@ -149,7 +149,7 @@ Dark "forensic console" aesthetic: near-black backgrounds, high-contrast monospa
 ## Your first task
 
 1. Read all 7 reference files listed above
-2. Update `docs/TEAM_PROGRESS.md` — add your section under "Frontend (YOUR NAME)" with current status
+2. Update `docs/comms/TEAM_PROGRESS.md` — add your section under "Frontend (YOUR NAME)" with current status
 3. Report your understanding of Phase 5 scope in three bullets
 4. Start with the Reports screen (it's the most self-contained)
 
