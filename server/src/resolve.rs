@@ -12,15 +12,6 @@ pub struct ResolveStats {
     pub communication_links: u64,
 }
 
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-struct Ev {
-    entity_type: String,
-    entity_id: String,
-    source_type: String,
-    raw: String,
-}
-
 type EntityKey = String;
 
 fn key(t: &str, id: &str) -> EntityKey {

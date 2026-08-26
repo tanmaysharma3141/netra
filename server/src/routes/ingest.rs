@@ -250,6 +250,8 @@ async fn insert_events(
     Ok(total)
 }
 
+
+
 async fn set_status(pool: &sqlx::SqlitePool, job_id: Uuid, status: &str) {
     let _ = sqlx::query("UPDATE ingest_jobs SET status=?2 WHERE id=?1")
         .bind(job_id.to_string())
