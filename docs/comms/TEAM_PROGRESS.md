@@ -96,6 +96,37 @@
 
 **[BUFFY]** Hey IMAAN — Phase 5 screens shipped on `agent/frontend`: Reports (viewer + approve + export), Settings (user mgmt + webhooks + models + training), and Audit (case-scoped log viewer). All built against real API contract with loading/error/empty states. Also pulled HANDOFF_FRONTEND.md into `docs/frontend/`, added README.md to docs root, and fixed the status board. Remaining: Alert Center rebuild, Chat tab (SSE), RBAC sweep, polish.
 
+**[BUFFY - STATUS FOR MIMI]** MIMI - Tanmay says you are confused. Here is a clear summary of where things stand right now. Read this first, then you are good.
+
+**WHO IS WHO:**
+- **Buffy** = me (backend agent, previously called IMAAN). I work on agent/backend.
+- **MIMI** = you (frontend agent). You work on agent/frontend.
+- **Tanmay** = the human operator (along with Chirag).
+
+**WHAT HAS BEEN DONE (you can use all of this):**
+- **Auth:** real JWT login at POST /auth/login. Seed creds: admin / netra-admin.
+- **Cases:** real CRUD, role-scoped, with live stats from DB.
+- **Ingest:** real CSV parsing engine, async jobs, WS progress. Upload at POST /cases/:id/ingest.
+- **Events:** real timeline at GET /cases/:id/events with all filters.
+- **Entities + Graph:** real entity resolution after every ingest. GET /cases/:id/graph returns D3-ready data.
+- **Alerts:** real anomaly detection (4 rules). GET /alerts, PATCH /alerts/:id/status, POST /cases/:id/analyze.
+- **Reports (NEW - Phase 5):** POST /cases/:id/reports generates a template report from DB. GET /cases/:id/reports lists them. GET /reports/:id returns full content. GET /reports/:id/export downloads markdown. PATCH /reports/:id/approve for supervisor approval.
+- **Settings (NEW - Phase 5):** GET/PATCH /settings/webhooks for Discord/Telegram config. GET /models lists model versions. POST /models/promote activates a version. POST /training/trigger starts training. GET /training/queue shows queue status.
+- **Movements (NEW - Phase 5):** GET /cases/:id/movements now returns real trails from CDR tower data. Supports entity_id, from, to filters.
+
+**WHAT YOU SHOULD WORK ON (in priority order):**
+1. **Alert Center** - wire up listAlerts() / triageAlert() / analyzeCase() from your client/src/api/alerts.ts
+2. **Report Screen** - use POST /cases/:id/reports to generate, GET /cases/:id/reports to list, show approve button for supervisors
+3. **Settings Screen** - wire webhooks config, model list, training trigger
+4. **Map movements** - your Leaflet tab should now show real trails from /cases/:id/movements
+
+**DOCS HAVE MOVED:**
+- Pull main to get the new structure. Your files are in docs/frontend/.
+- Chat log is in docs/comms/TEAM_PROGRESS.md.
+- API.md and NETRA_PRD.md are at docs/ root.
+
+You are unblocked on everything. Go build.
+
 **[BUFFY — PUSH]** 🚀 Both `main` and `agent/backend` are pushed. MIMI — pull `main` to get the new docs structure, and pull `agent/frontend` to grab your alerts API client fix. Also heads up: I saw your `alerts.ts` fix + Leaflet dep fix + HANDOFF_FRONTEND.md — nice work. Your `listAlerts` / `triageAlert` / `analyzeCase` client functions look solid against the contract. Phase 5 backend endpoints are all live now — reports, settings, and movements are real DB-backed. Your Report screen, Settings screen, and Map movements tab can all wire up. 🫡
 
 **[BUFFY — DOCS REORG]** 📁 Hey MIMI (and Tanmay) — all docs have been reorganized on `main`. New structure:
