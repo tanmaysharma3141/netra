@@ -110,7 +110,7 @@ pub async fn promote_model(
     State(state): State<AppState>,
     authed: Authed,
     Json(req): Json<crate::routes::settings::PromoteRequest>,
-) -> Result<StatusCode, Response> {
+) -> Result<Json<serde_json::Value>, Response> {
     authed.require(&[Role::Admin])?;
 
     // Check version exists
@@ -154,7 +154,7 @@ pub async fn promote_model(
     )
     .await;
 
-    Ok(StatusCode::NO_CONTENT)
+    Ok(Json(serde_json::json!({ "promoted": req.version })))
 }
 
 // --- Training ---
