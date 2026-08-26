@@ -1,3 +1,7 @@
+#![allow(dead_code)]
+
+#![allow(dead_code)]
+
 use chrono::Duration;
 use uuid::{uuid, Uuid};
 
