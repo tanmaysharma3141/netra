@@ -3,10 +3,13 @@ mod auth;
 mod db;
 mod ingest;
 mod models;
+mod pdf;
+mod ratelimit;
 mod resolve;
 mod routes;
 mod state;
 mod stub_data;
+mod webhook;
 
 use std::time::Duration;
 
@@ -52,10 +55,13 @@ async fn main() {
 
     let state = AppState::new(pool, jwt_secret);
 
-    tokio::spawn(ticker(state.clone()));
+    let login_limiter = std::sync::Arc::new(ratelimit::RateLimiter::new(20, 60));
 
-    let app = routes::router(state)
-        .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024 * 1024))
+    tokio::spawn(ticker(state.clone()));
+    tokio::spawn(revoked_token_cleanup(state.pool.clone()));
+
+    let app = routes::router(state, login_limiter)
+        .layer(axum::extract::DefaultBodyLimit::max(1024 * 1024))
         .layer(TraceLayer::new_for_http())
         .layer(cors());
 
@@ -81,4 +87,12 @@ fn ticker(state: AppState) -> tokio::task::JoinHandle<()> {
             });
         }
     })
+}
+
+async fn revoked_token_cleanup(pool: sqlx::SqlitePool) {
+    loop {
+        tokio::time::sleep(Duration::from_secs(3600)).await; // every hour
+        auth::cleanup_revoked_tokens(&pool).await;
+        tracing::debug!("cleaned up expired revoked tokens");
+    }
 }

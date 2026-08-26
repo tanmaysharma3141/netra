@@ -35,16 +35,10 @@ impl AlertRow {
             severity: self.severity.parse().unwrap_or(Severity::Low),
             score: self.score as u8,
             status: self.status.parse().unwrap_or(crate::models::AlertStatus::Open),
-            entity_ids: self
-                .entity_ids
-                .split('|')
-                .filter_map(|s| Uuid::parse_str(s).ok())
-                .collect(),
-            evidence_event_ids: self
-                .evidence_event_ids
-                .split('|')
-                .filter_map(|s| Uuid::parse_str(s).ok())
-                .collect(),
+            entity_ids: serde_json::from_str(&self.entity_ids)
+                .unwrap_or_default(),
+            evidence_event_ids: serde_json::from_str(&self.evidence_event_ids)
+                .unwrap_or_default(),
             summary: self.summary.clone(),
             created_at: self.created_at.clone(),
         }
@@ -195,12 +189,19 @@ async fn publish_new_alerts(state: &AppState, case_id: Uuid) {
     .await
     .unwrap_or_default();
 
-    for (id,) in rows {
-        if let Ok(aid) = Uuid::parse_str(&id) {
+    let mut alert_ids = Vec::new();
+    for (id,) in &rows {
+        if let Ok(aid) = Uuid::parse_str(id) {
             if let Some(alert) = fetch_alert(&state.pool, aid).await {
                 state.publish(format!("case:{case_id}"), WsEvent::AlertCreated { payload: alert });
+                alert_ids.push(aid);
             }
         }
+    }
+
+    // Fire webhook notifications (non-blocking)
+    if !alert_ids.is_empty() {
+        crate::webhook::notify_new_alerts(state.pool.clone(), case_id, alert_ids);
     }
 }
 

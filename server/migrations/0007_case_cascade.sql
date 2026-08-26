@@ -1,0 +1,5 @@
+-- Case deletion is handled at the application level
+-- The delete handler manually removes all related records before the case
+-- This migration is a placeholder for documentation purposes
+-- Actual cascade: events, entities, entity_edges, alerts, reports,
+--                 ingest_jobs, feedback_queue, audit_log for the case

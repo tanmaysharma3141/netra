@@ -91,8 +91,8 @@ pub async fn analyze_case(pool: &SqlitePool, case_id: Uuid) -> Result<AnalyzeSta
         .bind(d.pattern)
         .bind(d.severity.as_str())
         .bind(d.score.clamp(0, 100))
-        .bind(d.entity_ids.join("|"))
-        .bind(d.evidence_event_ids.join("|"))
+        .bind(serde_json::to_string(&d.entity_ids).unwrap_or_else(|_| "[]".into()))
+        .bind(serde_json::to_string(&d.evidence_event_ids).unwrap_or_else(|_| "[]".into()))
         .bind(&d.summary)
         .bind(now_ref)
         .execute(pool)
@@ -152,42 +152,35 @@ async fn imei_reuse_rule(
 }
 
 fn hawala_signature_rule(
-    rows: &[(
-        String,
-        String,
-        String,
-        String,
-        String,
-        Option<f64>,
-        Option<String>,
-    )],
-    case_id: &str,
+    rows: &[(String, String, String, String, String, Option<f64>, Option<String>)],
+    _case_id: &str,
     drafts: &mut Vec<DraftAlert>,
 ) {
-    let _ = case_id;
-    let mut per_account: HashMap<&str, Vec<(&str, f64)>> = HashMap::new();
-    for (_id, src, entity, etype, ts, value, _raw) in rows {
+    // Track event_id alongside timestamp and value
+    let mut per_account: HashMap<&str, Vec<(&str, f64, &str)>> = HashMap::new();
+    for (id, src, entity, etype, ts, value, _raw) in rows {
         if src != "bank" || etype != "txn" {
             continue;
         }
         if let (Some(v), Some(t)) = (value, parse_ts(ts)) {
-            per_account.entry(entity.as_str()).or_default().push((t, v.abs()));
+            per_account.entry(entity.as_str()).or_default().push((t, v.abs(), id.as_str()));
         }
     }
 
     for (account, txns) in per_account {
         let window = chrono::Duration::hours(HAWALA_WINDOW_HOURS);
         let mut idx = 0;
-        while idx + HAWALA_MIN_TXNS <= txns.len() {            let start = match chrono::DateTime::parse_from_rfc3339(txns[idx].0) {
+        while idx + HAWALA_MIN_TXNS <= txns.len() {
+            let start = match chrono::DateTime::parse_from_rfc3339(txns[idx].0) {
                 Ok(s) => s.with_timezone(&chrono::Utc),
                 Err(_) => {
                     idx += 1;
                     continue;
                 }
             };
-            let slice: Vec<(&str, f64)> = txns[idx..]
+            let slice: Vec<(&str, f64, &str)> = txns[idx..]
                 .iter()
-                .take_while(|(t, _)| {
+                .take_while(|(t, _, _)| {
                     chrono::DateTime::parse_from_rfc3339(t)
                         .map(|dt| dt.with_timezone(&chrono::Utc) - start <= window)
                         .unwrap_or(false)
@@ -195,18 +188,17 @@ fn hawala_signature_rule(
                 .copied()
                 .collect();
 
-            let deposits: f64 = slice.iter().map(|(_, v)| *v).sum();
-            let small_count = slice.iter().filter(|(_, v)| *v < 10_000.0).count();
+            let deposits: f64 = slice.iter().map(|(_, v, _)| *v).sum();
+            let small_count = slice.iter().filter(|(_, v, _)| *v < 10_000.0).count();
 
             if small_count >= HAWALA_MIN_TXNS && deposits >= 40_000.0 && deposits < 150_000.0 {
-                let score =
-                    (Severity::High.base_score() + (small_count as i64 - 4) * 3).clamp(0, 100);
+                let score = (Severity::High.base_score() + (small_count as i64 - 4) * 3).clamp(0, 100);
                 drafts.push(DraftAlert {
                     pattern: "hawala_signature",
                     severity: Severity::High,
                     score,
                     entity_ids: vec![format!("bank_acc:{account}")],
-                    evidence_event_ids: vec![],
+                    evidence_event_ids: slice.iter().map(|(_, _, id)| (*id).to_string()).collect(),
                     summary: format!(
                         "Account {} shows {} small sub-10k txns aggregating {:.0} within {}h - structured deposit pattern",
                         account, small_count, deposits, HAWALA_WINDOW_HOURS
@@ -221,24 +213,17 @@ fn hawala_signature_rule(
 }
 
 fn rapid_transfer_rule(
-    rows: &[(
-        String,
-        String,
-        String,
-        String,
-        String,
-        Option<f64>,
-        Option<String>,
-    )],
+    rows: &[(String, String, String, String, String, Option<f64>, Option<String>)],
     drafts: &mut Vec<DraftAlert>,
 ) {
-    let mut per_account: HashMap<&str, Vec<(&str, f64)>> = HashMap::new();
-    for (_id, src, entity, etype, ts, value, _raw) in rows {
+    // Track event_id alongside timestamp and value
+    let mut per_account: HashMap<&str, Vec<(&str, f64, &str)>> = HashMap::new();
+    for (id, src, entity, etype, ts, value, _raw) in rows {
         if src != "bank" || etype != "txn" {
             continue;
         }
         if let (Some(v), Some(t)) = (value, parse_ts(ts)) {
-            per_account.entry(entity.as_str()).or_default().push((t, v.abs()));
+            per_account.entry(entity.as_str()).or_default().push((t, v.abs(), id.as_str()));
         }
     }
 
@@ -254,9 +239,9 @@ fn rapid_transfer_rule(
                     continue;
                 }
             };
-            let slice: Vec<(&str, f64)> = txns[idx..]
+            let slice: Vec<(&str, f64, &str)> = txns[idx..]
                 .iter()
-                .take_while(|(t, _)| {
+                .take_while(|(t, _, _)| {
                     chrono::DateTime::parse_from_rfc3339(t)
                         .map(|dt| dt.with_timezone(&chrono::Utc) - start_ts <= window)
                         .unwrap_or(false)
@@ -265,7 +250,7 @@ fn rapid_transfer_rule(
                 .collect();
 
             if slice.len() >= RAPID_MIN_TXNS {
-                let flow: f64 = slice.iter().map(|(_, v)| *v).sum();
+                let flow: f64 = slice.iter().map(|(_, v, _)| *v).sum();
                 if flow >= RAPID_MIN_FLOW {
                     let key = format!("{account}|{}", slice[0].0);
                     if seen_keys.insert(key) {
@@ -276,13 +261,10 @@ fn rapid_transfer_rule(
                                 + ((flow - RAPID_MIN_FLOW) / 20_000.0) as i64)
                                 .clamp(0, 100),
                             entity_ids: vec![format!("bank_acc:{account}")],
-                            evidence_event_ids: vec![],
+                            evidence_event_ids: slice.iter().map(|(_, _, id)| (*id).to_string()).collect(),
                             summary: format!(
                                 "Account {} moved cumulative {:.0} across {} txns within {} minutes",
-                                account,
-                                flow,
-                                slice.len(),
-                                RAPID_WINDOW_MINUTES
+                                account, flow, slice.len(), RAPID_WINDOW_MINUTES
                             ),
                         });
                     }
@@ -294,29 +276,22 @@ fn rapid_transfer_rule(
 }
 
 fn coordinated_silence_rule(
-    rows: &[(
-        String,
-        String,
-        String,
-        String,
-        String,
-        Option<f64>,
-        Option<String>,
-    )],
+    rows: &[(String, String, String, String, String, Option<f64>, Option<String>)],
     drafts: &mut Vec<DraftAlert>,
 ) {
-    let mut last_activity: HashMap<&str, &str> = HashMap::new();
-    for (_id, src, entity, _etype, ts, _value, _raw) in rows {
+    // Track last activity per entity, including the event ID
+    let mut last_activity: HashMap<&str, (&str, &str)> = HashMap::new(); // entity -> (timestamp, event_id)
+    for (id, src, entity, _etype, ts, _value, _raw) in rows {
         if src != "cdr" {
             continue;
         }
-        last_activity.insert(entity.as_str(), ts.as_str());
+        last_activity.insert(entity.as_str(), (ts.as_str(), id.as_str()));
     }
     if last_activity.len() < SILENCE_MIN_PARTIES {
         return;
     }
 
-    let mut cutoff_candidates: Vec<&str> = last_activity.values().copied().collect();
+    let mut cutoff_candidates: Vec<&str> = last_activity.values().map(|(ts, _)| *ts).collect();
     cutoff_candidates.sort_unstable();
     cutoff_candidates.dedup();
 
@@ -326,24 +301,25 @@ fn coordinated_silence_rule(
             continue;
         };
         let end_utc = end_dt.with_timezone(&chrono::Utc);
-        let went_quiet = last_activity
+        let went_quiet_ids: Vec<String> = last_activity
             .iter()
-            .filter(|(_, ts)| {
+            .filter(|(_, (ts, _))| {
                 chrono::DateTime::parse_from_rfc3339(ts)
                     .map(|dt| dt.with_timezone(&chrono::Utc) <= end_utc)
                     .unwrap_or(false)
             })
-            .count();
-        if went_quiet >= SILENCE_MIN_PARTIES {
+            .map(|(_, (_, id))| id.to_string())
+            .collect();
+        if went_quiet_ids.len() >= SILENCE_MIN_PARTIES {
             drafts.push(DraftAlert {
                 pattern: "coordinated_silence",
                 severity: Severity::Medium,
                 score: Severity::Medium.base_score(),
                 entity_ids: vec![],
-                evidence_event_ids: vec![],
+                evidence_event_ids: went_quiet_ids.clone(),
                 summary: format!(
                     "{} linked phones stopped activity simultaneously before {}",
-                    went_quiet,
+                    went_quiet_ids.len(),
                     window_end[SILENCE_MIN_PARTIES - 1]
                 ),
             });
