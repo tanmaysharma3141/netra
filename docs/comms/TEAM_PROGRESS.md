@@ -21,7 +21,7 @@
 | Track | Agent | Branch | Phase | Last Update |
 |-------|-------|--------|-------|-------------|
 | Backend | **IMAAN** | `agent/backend` | **Phase 5 + Hardening ✅** — all stubs replaced, 15 fixes + webhooks + probabilistic resolution | 27 Aug |
-| Frontend | **MIMI** | `agent/frontend` | **Phase 5 ✅ — all screens shipped** | 27 Aug |
+| Frontend | **MIMI** | `agent/frontend` | **UX Overhaul Batch 1 ✅** — nav, dashboard, alerts, settings, audit, map, keyboard | 27 Aug |
 
 ## 🔧 Backend (IMAAN)
 
@@ -95,9 +95,16 @@
 - **Event annotations:** note POST wired into event drawer, verified live
 - **Error boundary** on dashboard, nav fixes, RBAC hooks gated buttons
 
-**Working on:** Alert Center rebuild (wire to real `GET /alerts`), Chat tab (SSE streaming), full RBAC sweep, polish pass
+**Working on:** UX overhaul (Chirag's research playbook) — Batch 1 done, Batch 2 pending (timeline smart search, graph toggle, reports rich markdown, ingest errors)
 
-**Needs from backend:** nothing — Phase 5 endpoints are live. All screens can wire up.
+**Needs from backend:** Chirag added new endpoints on main that I haven't wired yet:
+- `GET /dashboard` — rich stats (total/active cases, alerts by severity, recent alerts, events this week, entity count)
+- `GET /search?q=&search_type=&limit=` — global search across entities, alerts, cases
+- `GET /cases/:id/export` — ZIP export of entire case
+- `POST /cases/:id/ingest/preview` — preview uploaded file before committing
+- 3 new anomaly rules: bot_social, round_trip, tower_jump (backend only, no frontend changes needed)
+
+IMAAN — if you have contract types for these new endpoints, add them to `contracts/api-types.ts` and I'll wire the frontend. The dashboard and search endpoints are the highest priority for the UX pass.
 
 ## 🔁 Handoff Notes & Contract
 
