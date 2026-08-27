@@ -1,4 +1,6 @@
 pub mod detect;
+pub mod excel_parser;
+pub mod pdf_parser;
 
 use std::path::Path;
 
@@ -24,18 +26,17 @@ struct RowMap {
 }
 
 impl RowMap {
-    fn get(&self, row: &csv::StringRecord, canonical: &str) -> Option<String> {
+    fn get_str(&self, cells: &[String], canonical: &str) -> Option<String> {
         self.map
             .iter()
             .filter(|(c, _)| *c == canonical)
-            .find_map(|(_, idx)| row.get(*idx))
-            .map(str::trim)
+            .find_map(|(_, idx)| cells.get(*idx))
+            .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
-            .map(String::from)
     }
 
-    fn num(&self, row: &csv::StringRecord, canonical: &str) -> Option<f64> {
-        self.get(row, canonical)?
+    fn get_num(&self, cells: &[String], canonical: &str) -> Option<f64> {
+        self.get_str(cells, canonical)?
             .replace([',', ' '], "")
             .parse::<f64>()
             .ok()
@@ -47,6 +48,26 @@ pub fn run_parse(
     case_id: Uuid,
     file_stem: &str,
     mut on_progress: impl FnMut(u64),
+) -> Result<IngestResult, String> {
+    // Detect format by file extension
+    let ext = path.extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("")
+        .to_lowercase();
+
+    match ext.as_str() {
+        "xlsx" | "xls" => parse_excel_file(path, case_id, file_stem, &mut on_progress),
+        "pdf" => parse_pdf_file(path, case_id, file_stem, &mut on_progress),
+        _ => parse_csv_file(path, case_id, file_stem, &mut on_progress),
+    }
+}
+
+/// Parse CSV/TSV/TXT files (existing logic)
+fn parse_csv_file(
+    path: &Path,
+    case_id: Uuid,
+    file_stem: &str,
+    on_progress: &mut impl FnMut(u64),
 ) -> Result<IngestResult, String> {
     let raw = std::fs::read(path).map_err(|e| format!("read failed: {e}"))?;
     let text_head = String::from_utf8_lossy(&raw[..raw.len().min(65_536)]).to_string();
@@ -66,6 +87,53 @@ pub fn run_parse(
         return Err("empty header row".into());
     }
 
+    let row_iter = reader.records().filter_map(|r| r.ok()).map(|rec| {
+        let cells: Vec<String> = rec.iter().map(String::from).collect();
+        Ok(cells) as Result<Vec<String>, Box<dyn std::error::Error>>
+    });
+    process_rows(headers, row_iter, case_id, file_stem, &text_head, on_progress)
+}
+
+/// Parse Excel files via calamine
+fn parse_excel_file(
+    path: &Path,
+    case_id: Uuid,
+    file_stem: &str,
+    on_progress: &mut impl FnMut(u64),
+) -> Result<IngestResult, String> {
+    let (headers, rows) = excel_parser::parse_excel(path)?;
+    let row_iter = rows.into_iter().map(|r| Ok(r) as Result<Vec<String>, Box<dyn std::error::Error>>);
+    process_rows(headers, row_iter, case_id, file_stem, "", on_progress)
+}
+
+/// Parse PDF files via pdf-extract
+fn parse_pdf_file(
+    path: &Path,
+    case_id: Uuid,
+    file_stem: &str,
+    on_progress: &mut impl FnMut(u64),
+) -> Result<IngestResult, String> {
+    let (headers, rows) = pdf_parser::parse_pdf(path)?;
+    let row_iter = rows.into_iter().map(|r| Ok(r) as Result<Vec<String>, Box<dyn std::error::Error>>);
+    process_rows(headers, row_iter, case_id, file_stem, "", on_progress)
+}
+
+/// Unified processing pipeline: headers + row iterator → events
+fn process_rows<RowIter>(
+    headers: Vec<String>,
+    row_iter: RowIter,
+    case_id: Uuid,
+    file_stem: &str,
+    text_head: &str,
+    on_progress: &mut impl FnMut(u64),
+) -> Result<IngestResult, String>
+where
+    RowIter: Iterator<Item = Result<Vec<String>, Box<dyn std::error::Error>>>,
+{
+    if headers.is_empty() {
+        return Err("empty header row".into());
+    }
+
     let fp = detect_domain(&headers);
     if fp.score < 2 {
         return Err(format!(
@@ -74,7 +142,8 @@ pub fn run_parse(
         ));
     }
     let colmap = RowMap { map: build_column_map(&headers) };
-    let operator = detect_operator(file_stem).or_else(|| text_head.lines().take(3).find_map(detect_operator));
+    let operator = detect_operator(file_stem)
+        .or_else(|| text_head.lines().take(3).find_map(detect_operator));
 
     let source_type = match fp.domain {
         Domain::Cdr => SourceType::Cdr,
@@ -87,15 +156,18 @@ pub fn run_parse(
     let mut errors = Vec::new();
     let mut parsed: u64 = 0;
 
-    for rec in reader.records() {
-        let Ok(row) = rec else {
-            if errors.len() < MAX_ERRORS {
-                errors.push(format!("row {}: malformed csv record", parsed + 1));
+    for row_result in row_iter {
+        let cells = match row_result {
+            Ok(c) => c,
+            Err(e) => {
+                if errors.len() < MAX_ERRORS {
+                    errors.push(format!("row {}: {e}", parsed + 1));
+                }
+                continue;
             }
-            continue;
         };
 
-        match build_event(&colmap, &row, &headers, case_id, source_type, operator) {
+        match build_event_from_cells(&colmap, &cells, &headers, case_id, source_type, operator) {
             Ok(ev) => {
                 events.push(ev);
                 parsed += 1;
@@ -115,30 +187,31 @@ pub fn run_parse(
     Ok(IngestResult { parsed, errors, domain: fp.domain.as_str(), operator, events })
 }
 
+/// Build an event from a slice of cell values (used by all parsers)
 #[allow(clippy::too_many_arguments)]
-fn build_event(
+fn build_event_from_cells(
     m: &RowMap,
-    row: &csv::StringRecord,
+    cells: &[String],
     headers: &[String],
     case_id: Uuid,
     source_type: SourceType,
     operator: Option<&'static str>,
 ) -> Result<Event, String> {
     let ts = parse_ts(
-        m.get(row, "ts").as_deref(),
-        m.get(row, "date").as_deref(),
-        m.get(row, "time").as_deref(),
+        m.get_str(cells, "ts").as_deref(),
+        m.get_str(cells, "date").as_deref(),
+        m.get_str(cells, "time").as_deref(),
     )
     .ok_or_else(|| "unparseable/missing timestamp".to_string())?;
 
     let (entity_id, entity_type, event_type, value) = match source_type {
         SourceType::Cdr | SourceType::Ipdr => {
             let party = m
-                .get(row, "a_party")
-                .or_else(|| m.get(row, "phone"))
-                .or_else(|| m.get(row, "subscriber"))
+                .get_str(cells, "a_party")
+                .or_else(|| m.get_str(cells, "phone"))
+                .or_else(|| m.get_str(cells, "subscriber"))
                 .ok_or("missing subscriber number")?;
-            let direction = m.get(row, "direction").unwrap_or_default().to_lowercase();
+            let direction = m.get_str(cells, "direction").unwrap_or_default().to_lowercase();
             let et = if source_type == SourceType::Ipdr {
                 EventType::Data
             } else if direction.contains("sms") {
@@ -146,7 +219,7 @@ fn build_event(
             } else {
                 EventType::Call
             };
-            let dur = m.num(row, "duration").unwrap_or(0.0);
+            let dur = m.get_num(cells, "duration").unwrap_or(0.0);
             (
                 party,
                 EntityType::Phone,
@@ -156,10 +229,10 @@ fn build_event(
         }
         SourceType::Bank => {
             let account = m
-                .get(row, "account")
+                .get_str(cells, "account")
                 .ok_or("missing account number")?;
-            let debit = m.num(row, "debit");
-            let credit = m.num(row, "credit");
+            let debit = m.get_num(cells, "debit");
+            let credit = m.get_num(cells, "credit");
             let amount = match (debit, credit) {
                 (Some(d), Some(c)) => c - d,
                 (Some(d), None) => -d,
@@ -169,14 +242,14 @@ fn build_event(
             (account, EntityType::BankAcc, EventType::Txn, Some(amount))
         }
         SourceType::Social => {
-            let handle = m.get(row, "handle").ok_or("missing handle")?;
+            let handle = m.get_str(cells, "handle").ok_or("missing handle")?;
             (handle, EntityType::Handle, EventType::Post, None)
         }
     };
 
     let mut raw_obj = serde_json::Map::new();
     for (i, h) in headers.iter().enumerate() {
-        if let Some(v) = row.get(i) {
+        if let Some(v) = cells.get(i) {
             raw_obj.insert(h.trim().to_string(), serde_json::Value::String(v.to_string()));
         }
     }
@@ -184,8 +257,8 @@ fn build_event(
         raw_obj.insert("_operator".into(), serde_json::Value::String(op.to_string()));
     }
 
-    // Extract lat/lng from CSV columns if present
-    let location = match (m.num(row, "lat"), m.num(row, "lng")) {
+    // Extract lat/lng from columns if present
+    let location = match (m.get_num(cells, "lat"), m.get_num(cells, "lng")) {
         (Some(lat), Some(lng)) if lat != 0.0 && lng != 0.0 => {
             Some(LatLng { lat, lng })
         }

@@ -2,12 +2,16 @@ pub mod alerts;
 pub mod auth;
 pub mod cases;
 pub mod chat;
+pub mod dashboard;
 pub mod entities;
+pub mod export;
 pub mod events;
 pub mod geo;
 pub mod health;
 pub mod ingest;
+pub mod preview;
 pub mod reports;
+pub mod search;
 pub mod settings;
 pub mod users;
 pub mod ws;
@@ -72,7 +76,11 @@ pub fn router(state: AppState, login_limiter: std::sync::Arc<crate::ratelimit::R
         .route("/models", get(settings::models))
         .route("/models/promote", post(settings::promote_model))
         .route("/training/trigger", post(settings::trigger_training))
-        .route("/training/queue", get(settings::queue));
+        .route("/training/queue", get(settings::queue))
+        .route("/dashboard", get(dashboard::dashboard))
+        .route("/search", get(search::search))
+        .route("/cases/{id}/export", get(export::export_case))
+        .route("/cases/{id}/ingest/preview", post(preview::preview));
 
     let api = login_api.merge(other_api);
 
