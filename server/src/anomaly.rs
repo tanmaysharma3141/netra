@@ -73,6 +73,9 @@ pub async fn analyze_case(pool: &SqlitePool, case_id: Uuid) -> Result<AnalyzeSta
     hawala_signature_rule(&rows, &case_str, &mut drafts);
     rapid_transfer_rule(&rows, &mut drafts);
     coordinated_silence_rule(&rows, &mut drafts);
+    bot_social_rule(&rows, &mut drafts);
+    round_trip_rule(&rows, &mut drafts);
+    tower_jump_rule(&rows, &mut drafts);
 
     sqlx::query("DELETE FROM alerts WHERE case_id = ?1 AND status = 'open'")
         .bind(&case_str)
@@ -334,5 +337,207 @@ fn parse_ts(s: &str) -> Option<&str> {
     } else {
         None
     }
+}
+
+// ─── Additional Rules ──────────────────────────────────────────────────
+
+const BOT_MIN_POSTS: usize = 10;
+const BOT_MAX_INTERVAL_SECS: i64 = 300; // 5 minutes
+const ROUND_TRIP_WINDOW_HOURS: i64 = 48;
+const TOWER_JUMP_MAX_MINUTES: i64 = 30;
+const TOWER_JUMP_MIN_KM: f64 = 50.0;
+
+/// Rule: Bot-like social behavior — suspiciously regular posting intervals
+fn bot_social_rule(
+    rows: &[(String, String, String, String, String, Option<f64>, Option<String>)],
+    drafts: &mut Vec<DraftAlert>,
+) {
+    let mut per_handle: HashMap<&str, Vec<(&str, &str)>> = HashMap::new();
+    for (id, src, entity, _etype, ts, _value, _raw) in rows {
+        if src != "social" {
+            continue;
+        }
+        if let Some(t) = parse_ts(ts) {
+            per_handle.entry(entity.as_str()).or_default().push((t, id.as_str()));
+        }
+    }
+
+    for (handle, posts) in per_handle {
+        if posts.len() < BOT_MIN_POSTS {
+            continue;
+        }
+
+        // Check for regular intervals
+        let mut intervals: Vec<i64> = Vec::new();
+        for window in posts.windows(2) {
+            if let (Some(t1), Some(t2)) = (
+                chrono::DateTime::parse_from_rfc3339(window[0].0).ok(),
+                chrono::DateTime::parse_from_rfc3339(window[1].0).ok(),
+            ) {
+                intervals.push((t2 - t1).num_seconds().abs());
+            }
+        }
+
+        if intervals.is_empty() {
+            continue;
+        }
+
+        // Check if intervals are suspiciously consistent (std dev < 30% of mean)
+        let mean = intervals.iter().sum::<i64>() as f64 / intervals.len() as f64;
+        let variance: f64 = intervals.iter()
+            .map(|i| (*i as f64 - mean).powi(2))
+            .sum::<f64>() / intervals.len() as f64;
+        let std_dev = variance.sqrt();
+
+        if mean > 0.0 && std_dev / mean < 0.3 && mean < BOT_MAX_INTERVAL_SECS as f64 {
+            let score = (Severity::Medium.base_score() + (posts.len() as i64 - BOT_MIN_POSTS as i64) * 2).clamp(0, 100);
+            drafts.push(DraftAlert {
+                pattern: "bot_social",
+                severity: Severity::Medium,
+                score,
+                entity_ids: vec![format!("handle:{handle}")],
+                evidence_event_ids: posts.iter().map(|(_, id)| (*id).to_string()).collect(),
+                summary: format!(
+                    "Handle {} posted {} times with suspiciously regular intervals (avg {:.0}s between posts)",
+                    handle, posts.len(), mean
+                ),
+            });
+        }
+    }
+}
+
+/// Rule: Round-tripping — money leaves account A → arrives B → returns to A within 48h
+fn round_trip_rule(
+    rows: &[(String, String, String, String, String, Option<f64>, Option<String>)],
+    drafts: &mut Vec<DraftAlert>,
+) {
+    let mut transfers: Vec<(String, String, String, String)> = Vec::new();
+    for (id, src, entity, etype, ts, value, raw) in rows {
+        if src != "bank" || etype != "txn" {
+            continue;
+        }
+        let Some(t) = parse_ts(ts) else { continue };
+        let Some(raw_str) = raw else { continue };
+        let Ok(json) = serde_json::from_str::<serde_json::Value>(raw_str) else { continue };
+        let Some(obj) = json.as_object() else { continue };
+        let Some(counterparty) = obj.get("counterparty").and_then(|v| v.as_str()) else { continue };
+        if let Some(v) = value {
+            if *v < 0.0 {
+                transfers.push((entity.to_string(), counterparty.to_string(), t.to_string(), id.to_string()));
+            } else if *v > 0.0 {
+                transfers.push((counterparty.to_string(), entity.to_string(), t.to_string(), id.to_string()));
+            }
+        }
+    }
+
+    let window = chrono::Duration::hours(ROUND_TRIP_WINDOW_HOURS);
+    let mut seen = HashSet::new();
+
+    for t1 in &transfers {
+        for t2 in &transfers {
+            if t1.0 == t2.0 && t1.1 == t2.1 && t1.2 != t2.2 {
+                if let (Some(ts1), Some(ts2)) = (
+                    chrono::DateTime::parse_from_rfc3339(&t1.2).ok(),
+                    chrono::DateTime::parse_from_rfc3339(&t2.2).ok(),
+                ) {
+                    let diff = (ts2 - ts1).num_seconds().abs();
+                    if diff <= window.num_seconds() as i64 {
+                        let key = format!("{}|{}|{}|{}", t1.0, t1.1, t1.2, t2.2);
+                        if seen.insert(key) {
+                            drafts.push(DraftAlert {
+                                pattern: "round_trip",
+                                severity: Severity::High,
+                                score: Severity::High.base_score(),
+                                entity_ids: vec![format!("bank_acc:{}", t1.0), format!("bank_acc:{}", t1.1)],
+                                evidence_event_ids: vec![t1.3.clone(), t2.3.clone()],
+                                summary: format!(
+                                    "Round-trip detected: {} \u{2192} {} \u{2192} {} within {}h",
+                                    t1.0, t1.1, t1.0,
+                                    diff / 3600
+                                ),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Rule: Tower jump — impossible travel between towers (>50km in <30min)
+fn tower_jump_rule(
+    rows: &[(String, String, String, String, String, Option<f64>, Option<String>)],
+    drafts: &mut Vec<DraftAlert>,
+) {
+    let mut per_entity: HashMap<String, Vec<(f64, f64, String, String)>> = HashMap::new();
+    for (id, src, entity, _etype, ts, _value, raw) in rows {
+        if src != "cdr" {
+            continue;
+        }
+        let Some(raw_str) = raw.as_ref() else { continue };
+        let Ok(json) = serde_json::from_str::<serde_json::Value>(raw_str) else { continue };
+        let Some(obj) = json.as_object() else { continue };
+        let lat = match obj.get("Lat").and_then(|v| v.as_str()).and_then(|s| s.parse::<f64>().ok()) {
+            Some(v) => v,
+            None => continue,
+        };
+        let lng = match obj.get("Lng").and_then(|v| v.as_str()).and_then(|s| s.parse::<f64>().ok()) {
+            Some(v) => v,
+            None => continue,
+        };
+        if lat != 0.0 && lng != 0.0 {
+            if let Some(t) = parse_ts(ts) {
+                per_entity.entry(entity.clone()).or_default().push((lat, lng, t.to_string(), id.clone()));
+            }
+        }
+    }
+
+    for (entity, points) in &per_entity {
+        if points.len() < 2 {
+            continue;
+        }
+        let mut sorted = points.clone();
+        sorted.sort_by(|a, b| a.2.cmp(&b.2));
+
+        for window in sorted.windows(2) {
+            if let (Some(t1), Some(t2)) = (
+                chrono::DateTime::parse_from_rfc3339(&window[0].2).ok(),
+                chrono::DateTime::parse_from_rfc3339(&window[1].2).ok(),
+            ) {
+                let time_diff = (t2 - t1).num_minutes().abs();
+                if time_diff > TOWER_JUMP_MAX_MINUTES {
+                    continue;
+                }
+                let dist = haversine_km(window[0].0, window[0].1, window[1].0, window[1].1);
+                if dist > TOWER_JUMP_MIN_KM {
+                    let speed_kmh = dist / (time_diff as f64 / 60.0);
+                    let score = (Severity::Medium.base_score() + (dist / 10.0) as i64).clamp(0, 100);
+                    drafts.push(DraftAlert {
+                        pattern: "tower_jump",
+                        severity: Severity::Medium,
+                        score,
+                        entity_ids: vec![format!("phone:{entity}")],
+                        evidence_event_ids: vec![window[0].3.clone(), window[1].3.clone()],
+                        summary: format!(
+                            "Entity {} moved {:.0}km in {} minutes (avg {:.0} km/h) \u{2014} impossible travel",
+                            entity, dist, time_diff, speed_kmh
+                        ),
+                    });
+                    break;
+                }
+            }
+        }
+    }
+}
+
+/// Haversine distance between two lat/lng points (in km)
+fn haversine_km(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
+    let r = 6371.0; // Earth radius in km
+    let d_lat = (lat2 - lat1).to_radians();
+    let d_lon = (lon2 - lon1).to_radians();
+    let a = (d_lat / 2.0).sin().powi(2)
+        + lat1.to_radians().cos() * lat2.to_radians().cos() * (d_lon / 2.0).sin().powi(2);
+    let c = 2.0 * a.sqrt().asin();
+    r * c
 }
 
