@@ -95,28 +95,37 @@ fn markdown_to_html(title: &str, markdown: &str) -> String {
     );
 
     // Simple markdown → HTML conversion
+    let mut in_list = false;
     for line in markdown.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() {
+            if in_list { html.push_str("</ul>\n"); in_list = false; }
             html.push_str("<br>\n");
         } else if trimmed.starts_with("### ") {
+            if in_list { html.push_str("</ul>\n"); in_list = false; }
             html.push_str(&format!("<h3>{}</h3>\n", escape_html(&trimmed[4..])));
         } else if trimmed.starts_with("## ") {
+            if in_list { html.push_str("</ul>\n"); in_list = false; }
             html.push_str(&format!("<h2>{}</h2>\n", escape_html(&trimmed[3..])));
         } else if trimmed.starts_with("# ") {
             // Skip — we already rendered the title
         } else if trimmed.starts_with("- ") || trimmed.starts_with("* ") {
+            if !in_list { html.push_str("<ul>\n"); in_list = true; }
             let text = &trimmed[2..];
             html.push_str(&format!("<li>{}</li>\n", markdown_inline(text)));
         } else if trimmed.starts_with("---") {
+            if in_list { html.push_str("</ul>\n"); in_list = false; }
             html.push_str("<hr>\n");
         } else if trimmed.starts_with("**") && trimmed.ends_with("**") {
+            if in_list { html.push_str("</ul>\n"); in_list = false; }
             let text = &trimmed[2..trimmed.len() - 2];
             html.push_str(&format!("<p><strong>{}</strong></p>\n", escape_html(text)));
         } else {
+            if in_list { html.push_str("</ul>\n"); in_list = false; }
             html.push_str(&format!("<p>{}</p>\n", markdown_inline(trimmed)));
         }
     }
+    if in_list { html.push_str("</ul>\n"); }
 
     let now = chrono::Utc::now().format("%Y-%m-%d %H:%M UTC");
     html.push_str(&format!(
