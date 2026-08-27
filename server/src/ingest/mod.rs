@@ -5,7 +5,7 @@ use std::path::Path;
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use uuid::Uuid;
 
-use crate::models::{Event, EntityType, EventType, SourceType};
+use crate::models::{Event, EntityType, EventType, LatLng, SourceType};
 use detect::{build_column_map, detect_domain, detect_operator, sniff_delimiter, Domain};
 
 const PROGRESS_EVERY: u64 = 10_000;
@@ -184,6 +184,14 @@ fn build_event(
         raw_obj.insert("_operator".into(), serde_json::Value::String(op.to_string()));
     }
 
+    // Extract lat/lng from CSV columns if present
+    let location = match (m.num(row, "lat"), m.num(row, "lng")) {
+        (Some(lat), Some(lng)) if lat != 0.0 && lng != 0.0 => {
+            Some(LatLng { lat, lng })
+        }
+        _ => None,
+    };
+
     Ok(Event {
         id: Uuid::new_v4(),
         case_id,
@@ -193,7 +201,7 @@ fn build_event(
         entity_type,
         event_type,
         value,
-        location: None,
+        location,
         raw: serde_json::Value::Object(raw_obj),
         notes: vec![],
     })
