@@ -58,12 +58,7 @@ export function CasesScreen() {
             Investigations visible to your role — scoped server-side.
           </p>
         </div>
-        {can("case.create") ? (
-          <Button onClick={() => setCreateOpen(true)}>
-            <Plus className="mr-1.5 size-4" aria-hidden />
-            New case
-          </Button>
-        ) : null}
+
       </header>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -140,9 +135,6 @@ export function CasesScreen() {
               <TableRow>
                 <TableHead>Title</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Classification</TableHead>
-                <TableHead className="text-right">Events</TableHead>
-                <TableHead className="text-right">Entities</TableHead>
                 <TableHead>Alerts</TableHead>
                 <TableHead>Created</TableHead>
               </TableRow>
@@ -164,17 +156,6 @@ export function CasesScreen() {
                     <Badge variant="outline" className="font-mono text-[10px] tracking-wider uppercase">
                       {kase.status}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span className="font-mono text-xs tracking-wider">{kase.classification}</span>
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-xs tabular-nums">
-                    {Object.values(kase.stats.events_by_source)
-                      .reduce((a, b) => a + b, 0)
-                      .toLocaleString("en-IN")}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-xs tabular-nums">
-                    {kase.stats.entity_count.toLocaleString("en-IN")}
                   </TableCell>
                   <TableCell>
                     <div className="flex gap-1.5">
@@ -208,6 +189,17 @@ export function CasesScreen() {
       )}
 
       <CreateCaseDialog open={createOpen} onOpenChange={setCreateOpen} />
+
+      {/* FAB for create case */}
+      {can("case.create") && (
+        <button
+          onClick={() => setCreateOpen(true)}
+          className="fixed bottom-6 right-6 flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-colors hover:bg-primary/90"
+          aria-label="New case"
+        >
+          <Plus className="size-5" aria-hidden />
+        </button>
+      )}
     </div>
   )
 }

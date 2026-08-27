@@ -36,10 +36,11 @@ You develop against Chirag's stub server until each phase gate flips to real dat
 - [x] Ingest UI: drag-and-drop upload → `POST /cases/:id/ingest` (`components/ingest/ingest-panel.tsx`; RBAC-gated "Ingest" tab on case detail, hidden without `data.upload`)
 - [x] Job progress UI from WS `ingest.progress` + poll fallback via `/ingest/jobs/:id` (`src/api/ws.ts` manager: `?token=` auth per contract, auto-reconnect w/ backoff, re-subscribe; WS handshake + dotted `alert.created` frame verified live)
 - [x] Parse errors display (row-level error list, capped view with expandable details)
-- [ ] Alert Center: cross-case list, severity badges, filter by status/severity — blocked on IMAAN's anomaly engine (Phase 4 backend)
+- [x] Alert API client (`src/api/alerts.ts` — listAlerts, getAlert, triageAlert, analyzeCase)
+- [ ] Alert Center: cross-case list, severity badges, filter by status/severity — **UNBLOCKED** (anomaly engine live), needs screen rebuild
 - [ ] Alert detail: evidence events inline-linked to timeline drawer
 - [ ] Triage workflow buttons: Confirmed / False Positive / Needs Review (+ optional note)
-- [ ] Toast + native desktop notification on WS `alert.created` (respect severity config) — WS path proven; wiring lands with Alert Center
+- [ ] Toast + native desktop notification on WS `alert.created` — WS path proven; wiring lands with Alert Center
 - [ ] **Gate:** upload file from UI, watch progress, triage resulting alerts — upload→progress→events half verified end-to-end (100k CSV through real API); triage half awaits alerts engine
 
 ## Phase 4 — Graph + Map Components (4–6 Sep)

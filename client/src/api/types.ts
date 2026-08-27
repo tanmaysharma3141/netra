@@ -23,5 +23,6 @@ export type {
   IngestJob,
   GeoPoint,
   Report,
+  AuditEntry,
   ApiError,
 } from "@contracts/api-types"
