@@ -10,6 +10,7 @@ import { AlertsScreen } from "@/screens/alerts-screen"
 import { ReportsScreen } from "@/screens/reports-screen"
 import { SettingsScreen } from "@/screens/settings-screen"
 import { AuditScreen } from "@/screens/audit-screen"
+import { SearchScreen } from "@/screens/search-screen"
 
 function RequireAuth() {
   const { status } = useAuth()
@@ -45,6 +46,7 @@ export default function App() {
           <Route path="cases/:id" element={<CaseDetailScreen />} />
           <Route path="alerts" element={<AlertsScreen />} />
           <Route path="reports" element={<ReportsScreen />} />
+          <Route path="search" element={<SearchScreen />} />
           <Route path="settings" element={<SettingsScreen />} />
           <Route path="audit" element={<AuditScreen />} />
         </Route>

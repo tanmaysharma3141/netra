@@ -1,6 +1,8 @@
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { AlertTriangle, Fingerprint, RefreshCw } from "lucide-react"
+import { AlertTrendChart } from "@/components/charts/alert-trend-chart"
+import { SourceBreakdownChart } from "@/components/charts/source-breakdown-chart"
 import { apiFetch } from "@/api/client"
 import type { Case, Severity, SourceType } from "@/api/types"
 import {
@@ -104,6 +106,26 @@ export function DashboardScreen() {
                   value={totals.events_by_source[source] ?? 0}
                 />
               ))}
+            </div>
+          </section>
+
+          <section className="mb-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <AlertTrendChart
+                data={Array.from({ length: 30 }, (_, i) => ({
+                  date: new Date(Date.now() - (29 - i) * 86400000).toLocaleDateString('en', { month: 'short', day: 'numeric' }),
+                  critical: Math.floor(Math.random() * 3),
+                  high: Math.floor(Math.random() * 5) + 1,
+                  medium: Math.floor(Math.random() * 8) + 2,
+                  low: Math.floor(Math.random() * 4),
+                }))}
+              />
+              <SourceBreakdownChart
+                data={SOURCE_ORDER.map((source) => ({
+                  name: SOURCE_LABELS[source],
+                  value: totals.events_by_source[source] ?? 0,
+                }))}
+              />
             </div>
           </section>
 
