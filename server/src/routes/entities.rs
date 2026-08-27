@@ -337,12 +337,9 @@ pub async fn resolve_endpoint(
 ) -> Result<Json<crate::resolve::ResolveStats>, Response> {
     authed.require(&[Role::Admin, Role::Investigator])?;
     let pool = state.pool.clone();
-    let stats = tokio::task::spawn_blocking(move || {
-        tokio::runtime::Handle::current().block_on(crate::resolve::resolve_case(&pool, case_id))
-    })
-    .await
-    .map_err(internal)?
-    .map_err(internal)?;
+    let stats = crate::resolve::resolve_case(&pool, case_id)
+        .await
+        .map_err(internal)?;
 
     crate::db::audit(
         &state.pool,

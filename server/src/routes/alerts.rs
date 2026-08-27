@@ -159,12 +159,9 @@ pub async fn analyze(
 
     let _guard = state.pipeline_lock.lock().await;
     let pool = state.pool.clone();
-    let stats = tokio::task::spawn_blocking(move || {
-        tokio::runtime::Handle::current().block_on(crate::anomaly::analyze_case(&pool, case_id))
-    })
-    .await
-    .map_err(internal)?
-    .map_err(internal)?;
+    let stats = crate::anomaly::analyze_case(&pool, case_id)
+        .await
+        .map_err(internal)?;
 
     db::audit(
         &state.pool,

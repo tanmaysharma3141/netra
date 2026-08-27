@@ -249,50 +249,34 @@ async fn fill_stats(state: &AppState, cases: &mut [Case]) {
 
     // Batch query: stats for all cases in one round-trip
     let case_ids: Vec<String> = cases.iter().map(|c| c.id.to_string()).collect();
-    let placeholders: Vec<String> = case_ids.iter().enumerate().map(|(i, _)| format!("?{}", i + 1)).collect();
-    let ph = placeholders.join(",");
+    // Per-case stats queries (simple and correct)
+    let mut src_map: std::collections::HashMap<String, std::collections::HashMap<String, i64>> = std::collections::HashMap::new();
+    let mut sev_map: std::collections::HashMap<String, std::collections::HashMap<String, i64>> = std::collections::HashMap::new();
+    let mut ent_map: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
 
-    // Event counts by source_type per case
-    let src_query = format!(
-        "SELECT case_id, source_type, COUNT(*) as cnt FROM events WHERE case_id IN ({ph}) GROUP BY case_id, source_type"
-    );
-    let mut src_qb = sqlx::QueryBuilder::new(&src_query);
-    for id in &case_ids {
-        src_qb.push_bind(id.clone());
+    for cid in &case_ids {
+        let src_rows: Vec<(String, i64)> = sqlx::query_as(
+            "SELECT source_type, COUNT(*) FROM events WHERE case_id = ?1 GROUP BY source_type"
+        ).bind(cid).fetch_all(&state.pool).await.unwrap_or_default();
+        for (src, cnt) in src_rows {
+            src_map.entry(cid.clone()).or_default().insert(src, cnt);
+        }
+        let sev_rows: Vec<(String, i64)> = sqlx::query_as(
+            "SELECT severity, COUNT(*) FROM alerts WHERE case_id = ?1 GROUP BY severity"
+        ).bind(cid).fetch_all(&state.pool).await.unwrap_or_default();
+        for (sev, cnt) in sev_rows {
+            sev_map.entry(cid.clone()).or_default().insert(sev, cnt);
+        }
+        let ent_row: Option<(i64,)> = sqlx::query_as(
+            "SELECT COUNT(*) FROM entities WHERE case_id = ?1"
+        ).bind(cid).fetch_optional(&state.pool).await.unwrap_or_default();
+        if let Some((cnt,)) = ent_row {
+            ent_map.insert(cid.clone(), cnt);
+        }
     }
-    let src_rows: Vec<(String, String, i64)> = src_qb
-        .build_query_as()
-        .fetch_all(&state.pool)
-        .await
-        .unwrap_or_default();
-
-    // Alert counts by severity per case
-    let sev_query = format!(
-        "SELECT case_id, severity, COUNT(*) as cnt FROM alerts WHERE case_id IN ({ph}) GROUP BY case_id, severity"
-    );
-    let mut sev_qb = sqlx::QueryBuilder::new(&sev_query);
-    for id in &case_ids {
-        sev_qb.push_bind(id.clone());
-    }
-    let sev_rows: Vec<(String, String, i64)> = sev_qb
-        .build_query_as()
-        .fetch_all(&state.pool)
-        .await
-        .unwrap_or_default();
-
-    // Entity counts per case
-    let ent_query = format!(
-        "SELECT case_id, COUNT(*) as cnt FROM entities WHERE case_id IN ({ph}) GROUP BY case_id"
-    );
-    let mut ent_qb = sqlx::QueryBuilder::new(&ent_query);
-    for id in &case_ids {
-        ent_qb.push_bind(id.clone());
-    }
-    let ent_rows: Vec<(String, i64)> = ent_qb
-        .build_query_as()
-        .fetch_all(&state.pool)
-        .await
-        .unwrap_or_default();
+    let src_rows: Vec<(String, String, i64)> = src_map.into_iter().flat_map(|(cid, m)| m.into_iter().map(move |(s, c)| (cid.clone(), s, c))).collect();
+    let sev_rows: Vec<(String, String, i64)> = sev_map.into_iter().flat_map(|(cid, m)| m.into_iter().map(move |(s, c)| (cid.clone(), s, c))).collect();
+    let ent_rows: Vec<(String, i64)> = ent_map.into_iter().collect();
 
     // Build lookup maps
     let mut src_map: std::collections::HashMap<String, std::collections::HashMap<String, i64>> = std::collections::HashMap::new();
