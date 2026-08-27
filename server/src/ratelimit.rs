@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
-use axum::extract::{ConnectInfo, Request};
+use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
@@ -59,18 +59,18 @@ impl RateLimiter {
 }
 
 /// Axum middleware that enforces rate limiting on the login endpoint.
+/// Keys by a fixed value since this is a local LEA deployment.
 pub async fn login_rate_limit(
-    ConnectInfo(addr): ConnectInfo<std::net::SocketAddr>,
     axum::extract::State(limiter): axum::extract::State<Arc<RateLimiter>>,
     request: Request,
     next: Next,
 ) -> Response {
-    let ip = addr.ip().to_string();
-    if limiter.check(&ip).await {
+    let key = "login-global".to_string();
+    if limiter.check(&key).await {
         next.run(request).await
     } else {
-        let retry = limiter.retry_after(&ip).await;
-        tracing::warn!(ip = %ip, "rate limited on login");
+        let retry = limiter.retry_after(&key).await;
+        tracing::warn!("rate limited on login");
         (
             StatusCode::TOO_MANY_REQUESTS,
             [(

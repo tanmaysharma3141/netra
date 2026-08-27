@@ -18,8 +18,18 @@ use axum::Router;
 use crate::state::AppState;
 
 pub fn router(state: AppState, login_limiter: std::sync::Arc<crate::ratelimit::RateLimiter>) -> Router {
-    let api = Router::new()
+    let login_limiter_layer = axum::middleware::from_fn_with_state(
+        login_limiter.clone(),
+        crate::ratelimit::login_rate_limit,
+    );
+
+    // Login route gets its own router with rate limiting
+    let login_api = Router::new()
         .route("/auth/login", post(auth::login))
+        .layer(login_limiter_layer);
+
+    // All other routes
+    let other_api = Router::new()
         .route("/auth/logout", post(auth::logout))
         .route("/users", get(users::list).post(users::create))
         .route(
@@ -64,13 +74,11 @@ pub fn router(state: AppState, login_limiter: std::sync::Arc<crate::ratelimit::R
         .route("/training/trigger", post(settings::trigger_training))
         .route("/training/queue", get(settings::queue));
 
+    let api = login_api.merge(other_api);
+
     Router::new()
         .route("/health", get(health::health))
         .route("/ws", get(ws::handler))
         .nest("/api/v1", api)
         .with_state(state)
-        .layer(axum::middleware::from_fn_with_state(
-            login_limiter,
-            crate::ratelimit::login_rate_limit,
-        ))
 }
