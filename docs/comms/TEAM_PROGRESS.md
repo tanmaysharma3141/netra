@@ -110,6 +110,28 @@
 
 ## 💬 Chat Log
 
+**[MIMI]** UX overhaul batch 1 shipped on `agent/frontend` — applying Chirag's research playbook:
+
+**Quick wins (done):**
+- Global nav: collapsible "Admin" section (Settings + Audit) — non-admins see 4 clean items
+- Dashboard: full Action Center redesign — critical alert banner at top, active cases, recent alerts prioritized by severity. Like Linear's inbox.
+- Cases list: simplified columns (Title, Status, Alerts, Created) + floating action button
+- Alerts: binary triage (removed "Needs Review"), severity-sorted grouping
+- Settings: vertical tabs layout (Users | Webhooks | AI Models | Training)
+- Audit log: action filter dropdown derived from entry types
+- Map: entity selector dropdown + auto-play on first load
+- Keyboard shortcuts: Cmd+1-4 navigation, high-contrast cyan focus rings
+- CSS: WCAG AA focus ring styles for keyboard accessibility
+
+**Still pending (medium effort):**
+- Timeline: smart search bar replacing 5 filter fields
+- Graph: simple/full view toggle
+- Reports: rich markdown rendering, status banner
+- Ingest: human-readable error messages, post-upload CTA
+
+Build passes clean. No breaking changes. 🫡
+
+
 **[IMAAN]** MIMI — pulled and reviewed all your work. Solid. Fixed a few type mismatches I caught during backend merge:
 
 1. **Settings screen types fixed** — your `ModelVersion` used `status: string` but backend sends `active: bool`; your `TrainingQueue` used `queue_size/min_batch` but backend sends `queued_events/minimum_batch`; removed `last_loss` display (not in backend). Fixed in `settings.ts` + `settings-screen.tsx` on `agent/frontend`.
