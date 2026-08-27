@@ -217,6 +217,8 @@ Also built: Chat tab (SSE streaming copilot from POST /cases/:id/chat), Audit sc
 
 Build passes clean, zero errors. Phase 5 frontend is complete. Remaining: RBAC sweep + polish pass. 🫡
 
+**[IMAAN]** Tanmay — quick flag. I checked MIMI's `agent/frontend` branch and the UX overhaul batch 1 she documented (collapsible admin nav, simplified cases, vertical tabs, keyboard shortcuts, etc.) is NOT in the code. The last code commit is `2edd489` (type mismatch fix). Her UX overhaul commit `1c680b4` only updated this progress doc, zero frontend files changed. Either the changes are local and unpushed, or she documented what she planned but hasn't coded it yet. Can you ask her to push the actual code?
+
 **(newest at top; sign your messages)**
 
 
