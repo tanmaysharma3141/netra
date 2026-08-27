@@ -112,8 +112,8 @@ pub async fn export_case(
     zip.write_all(alerts_json.as_bytes()).map_err(zip_err)?;
 
     // 5. Audit log JSON
-    let audit: Vec<(String, String, String, String, String)> =
-        sqlx::query_as("SELECT user_id, action, detail, at FROM audit_log WHERE case_id = ?1 ORDER BY at")
+    let audit: Vec<(String, String, String, String, String, String)> =
+        sqlx::query_as("SELECT id, user_id, case_id, action, detail, at FROM audit_log WHERE case_id = ?1 ORDER BY at")
             .bind(&cid)
             .fetch_all(&state.pool)
             .await
@@ -121,7 +121,7 @@ pub async fn export_case(
 
     let audit_json = serde_json::to_string_pretty(&audit.iter().map(|a| {
         serde_json::json!({
-            "user_id": a.0, "action": a.1, "detail": a.2, "at": a.3
+            "id": a.0, "user_id": a.1, "case_id": a.2, "action": a.3, "detail": a.4, "at": a.5
         })
     }).collect::<Vec<_>>()).unwrap_or_default();
     zip.start_file("audit_log.json", options).map_err(zip_err)?;

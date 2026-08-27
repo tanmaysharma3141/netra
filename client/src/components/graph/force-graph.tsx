@@ -52,9 +52,24 @@ function nodeRadius(type: EntityType, degree: number): number {
 export function ForceGraph({ nodes, edges, selectedId, onNodeClick }: ForceGraphProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
+  // Store refs that persist across renders without restarting the simulation
+  const simRef = useRef<d3.Simulation<ForceGraphNode, SimLink> | null>(null)
+  const nodeSelRef = useRef<d3.Selection<SVGGElement, ForceGraphNode, SVGGElement, unknown> | null>(null)
+  const edgeSelRef = useRef<d3.Selection<SVGLineElement, SimLink, SVGGElement, unknown> | null>(null)
+  const adjacencyRef = useRef<Map<string, Set<string>>>(new Map())
+  const dataKeyRef = useRef<string>("")
+
+  // Initialize / rebuild simulation ONLY when nodes or edges actually change
   useEffect(() => {
     const container = containerRef.current
     if (!container || nodes.length === 0) return
+
+    const dataKey = `${nodes.length}-${edges.length}-${nodes[0]?.id ?? ""}`
+    if (dataKey === dataKeyRef.current) return
+    dataKeyRef.current = dataKey
+
+    // Clean up old simulation
+    if (simRef.current) simRef.current.stop()
 
     const { width, height } = container.getBoundingClientRect()
 
@@ -114,6 +129,8 @@ export function ForceGraph({ nodes, edges, selectedId, onNodeClick }: ForceGraph
         "collide",
         d3.forceCollide<ForceGraphNode>((n) => nodeRadius(n.type, degreeById.get(n.id) ?? 0) + 4),
       )
+      .alphaDecay(0.03)  // Slower decay = smoother settling
+      .velocityDecay(0.4) // More friction = less jitter
 
     const adjacency = new Map<string, Set<string>>()
     for (const link of simLinks) {
@@ -124,6 +141,7 @@ export function ForceGraph({ nodes, edges, selectedId, onNodeClick }: ForceGraph
       adjacency.get(s)!.add(t)
       adjacency.get(t)!.add(s)
     }
+    adjacencyRef.current = adjacency
 
     const edgeSel = root
       .selectAll<SVGLineElement, SimLink>("line.edge")
@@ -134,12 +152,14 @@ export function ForceGraph({ nodes, edges, selectedId, onNodeClick }: ForceGraph
       .attr("stroke-width", (l) => Math.max(1, Math.min(5, 1 + Math.log2(l.edge.evidence_count + 1) * 0.8)))
       .attr("stroke-dasharray", (l) => (l.edge.tier === "high" ? "" : "4 3"))
       .attr("stroke-opacity", 0.55)
+    edgeSelRef.current = edgeSel
 
     const nodeSel = root
       .selectAll<SVGGElement, ForceGraphNode>("g.node")
       .data(simNodes, (n) => n.id)
       .join("g")
       .attr("class", "node cursor-pointer")
+    nodeSelRef.current = nodeSel
 
     nodeSel.selectAll("circle").remove()
     nodeSel
@@ -152,7 +172,7 @@ export function ForceGraph({ nodes, edges, selectedId, onNodeClick }: ForceGraph
 
     nodeSel.selectAll("text").remove()
     nodeSel
-      .filter((n) => (degreeById.get(n.id) ?? 0) >= 3 || n.id === selectedId)
+      .filter((n) => (degreeById.get(n.id) ?? 0) >= 3)
       .append("text")
       .text((n) => (n.label.length > 18 ? `${n.label.slice(0, 17)}…` : n.label))
       .attr("text-anchor", "middle")
@@ -186,26 +206,25 @@ export function ForceGraph({ nodes, edges, selectedId, onNodeClick }: ForceGraph
         }),
     )
 
-    function applyHighlight(hovered: string | null) {
-      const focus = hovered ?? selectedId
-      const neighbors = focus ? (adjacency.get(focus) ?? new Set<string>()) : null
+    nodeSel.on("mouseenter", (_event: unknown, n) => {
+      const neighbors = adjacency.get(n.id) ?? new Set<string>()
       nodeSel
-        .attr("opacity", () => (!focus || !neighbors ? 1 : 0.35))
+        .attr("opacity", (d) => (d.id === n.id || neighbors.has(d.id)) ? 1 : 0.2)
         .select("circle")
-        .attr("stroke", (n) => (n.id === selectedId ? "var(--color-primary)" : "var(--color-background)"))
-      if (focus && neighbors) {
-        nodeSel.filter((n) => n.id === focus || neighbors.has(n.id)).attr("opacity", 1)
-      }
+        .attr("stroke", (d) => (d.id === n.id) ? "var(--color-primary)" : "var(--color-background)")
       edgeSel.attr("stroke-opacity", (l) => {
-        if (!focus || !neighbors) return 0.55
         const s = refId(l.source)
         const t = refId(l.target)
-        return s === focus || t === focus ? 0.95 : 0.08
+        return s === n.id || t === n.id ? 0.95 : 0.06
       })
-    }
-
-    nodeSel.on("mouseenter", (_event: unknown, n) => applyHighlight(n.id))
-    nodeSel.on("mouseleave", () => applyHighlight(null))
+    })
+    nodeSel.on("mouseleave", () => {
+      nodeSel
+        .attr("opacity", 1)
+        .select("circle")
+        .attr("stroke", "var(--color-background)")
+      edgeSel.attr("stroke-opacity", 0.55)
+    })
 
     simulation.on("tick", () => {
       edgeSel
@@ -216,12 +235,38 @@ export function ForceGraph({ nodes, edges, selectedId, onNodeClick }: ForceGraph
       nodeSel.attr("transform", (n) => `translate(${n.x ?? 0},${n.y ?? 0})`)
     })
 
-    applyHighlight(null)
+    simRef.current = simulation
 
     return () => {
       simulation.stop()
+      dataKeyRef.current = ""
     }
-  }, [nodes, edges, selectedId, onNodeClick])
+  }, [nodes, edges, onNodeClick])
+
+  // Selection highlight — runs separately, does NOT restart simulation
+  useEffect(() => {
+    const nodeSel = nodeSelRef.current
+    const edgeSel = edgeSelRef.current
+    const adjacency = adjacencyRef.current
+    if (!nodeSel || !edgeSel) return
+
+    if (!selectedId) {
+      nodeSel.attr("opacity", 1).select("circle").attr("stroke", "var(--color-background)")
+      edgeSel.attr("stroke-opacity", 0.55)
+      return
+    }
+
+    const neighbors = adjacency.get(selectedId) ?? new Set<string>()
+    nodeSel
+      .attr("opacity", (n) => (n.id === selectedId || neighbors.has(n.id)) ? 1 : 0.2)
+      .select("circle")
+      .attr("stroke", (n) => (n.id === selectedId) ? "var(--color-primary)" : "var(--color-background)")
+    edgeSel.attr("stroke-opacity", (l) => {
+      const s = refId(l.source)
+      const t = refId(l.target)
+      return s === selectedId || t === selectedId ? 0.95 : 0.06
+    })
+  }, [selectedId])
 
   return <div ref={containerRef} className="h-full w-full" />
 }
