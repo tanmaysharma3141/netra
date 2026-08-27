@@ -58,15 +58,23 @@ case = api("POST", "/cases", {
 case_id = case["id"]
 print(f"[OK] Created case: {case_id[:8]}")
 
-# Ingest demo data
+# Ingest demo data via curl (urllib multipart breaks on large files)
 csv_path = os.path.join(os.path.dirname(__file__), "..", "demo_cdr.csv")
 print(f"\nIngesting {csv_path}...")
-with open(csv_path, "rb") as f:
-    csv_data = f.read()
-print(f"  File size: {len(csv_data) / 1024:.0f} KB")
+print(f"  File size: {os.path.getsize(csv_path) / 1024:.0f} KB")
 
-upload = api("POST", f"/cases/{case_id}/ingest", token=token, files=[("demo_cdr.csv", csv_data)])
+import subprocess
+result = subprocess.run(
+    ["curl", "-s", "-X", "POST",
+     f"http://127.0.0.1:8420/api/v1/cases/{case_id}/ingest",
+     "-H", f"Authorization: Bearer {token}",
+     "-F", f"files=@{csv_path}"],
+    capture_output=True, text=True, timeout=60)
+upload = json.loads(result.stdout)
 job_id = upload.get("job_id")
+if not job_id:
+    print(f"  Upload failed: {upload}")
+    sys.exit(1)
 print(f"  Uploaded, job={job_id[:8]}")
 
 # Poll until done
