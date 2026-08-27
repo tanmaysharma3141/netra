@@ -20,7 +20,7 @@
 
 | Track | Agent | Branch | Phase | Last Update |
 |-------|-------|--------|-------|-------------|
-| Backend | **IMAAN** | `agent/backend` | **Phase 5 + Hardening ✅** — all stubs replaced, 15 fixes + webhooks + probabilistic resolution | 27 Aug |
+| Backend | **IMAAN** | `agent/backend` → merged to `main` | **Feature Complete ✅** — all endpoints, tower DB, multi-format ingest, 7 anomaly rules, CrPC 65B reports, offline tiles, native notifications | 27 Aug |
 | Frontend | **MIMI** | `agent/frontend` | **UX Overhaul Batch 1 ✅ + Chirag Tier 1 merge ✅** — charts, search, notifications, offline tiles | 27 Aug |
 
 ## 🔧 Backend (IMAAN)
@@ -61,7 +61,26 @@
 - **E2E verified**: 100k CDR + 5k bank → 96 alerts (1 critical IMEI-reuse, 3 hawala, 92 rapid-transfer)
 - **Full codebase audit completed** (commit `b6aa011`): 0 Rust warnings, 0 TS errors. All unused imports/variables removed; dead code annotated with `#[allow(dead_code)]`. Both binaries (`netra-server`, `gen-synthetic`) compile clean. `tsc --noEmit` passes.
 
-**Next:** Hackathon prep — PDF generation (proper), LLM integration, probabilistic entity resolution tuning
+**Done (Tier 1 + Tier 2 — ALL SHIPPED, merged to main):**
+- **Multi-format ingestion:** PDF (pdf-extract), Excel/XLSX (calamine), all feed into same `build_event` pipeline. Upload accepts .csv/.tsv/.txt/.zip/.xlsx/.xls/.pdf/.docx
+- **GET /dashboard** — KPI stats (total cases, alerts by severity, entities, events, storage) + recent 10 alerts
+- **GET /search?q=...** — cross-case search across entities, alerts, and cases
+- **GET /cases/:id/export** — evidence zip download (events, entities, edges, alerts, audit log)
+- **POST /cases/:id/ingest/preview** — first 10 rows preview before committing upload
+- **3 new anomaly rules (7 total):** `bot_social` (regular posting intervals), `round_trip` (money A→B→A in 48h), `tower_jump` (>50km in <30min)
+- **GET/PATCH /settings/alerts** — configurable thresholds for all 7 anomaly rules
+- **GET/PATCH /settings/retention** — data retention policies
+- **Contract types** — DashboardStats, SearchResults, IngestPreview, AlertThresholds, RetentionConfig, HealthStatus in api-types.ts
+- **CrPC 65B report template** — court-admissible format with Section 65B declaration, SHA-256 chain-of-custody, IT Act 2000 reference
+- **Entity resolution blocking** — operator×date bucketing reduces O(n²) to O(n·k)
+- **Cell tower DB** — 2,901 real towers from OpenCelliD (Chandigarh area), wired into ingest pipeline
+- **Tower resolution** — auto-resolves LAC/CID to real lat/lng after event insertion (4 formats supported)
+- **Offline map tiles** — 5,776 OSM tiles for Punjab/Chandigarh (zoom 5-12, 47MB)
+- **Native OS notifications** — tauri-plugin-notification + browser fallback, alert subscription helper
+- **Backup CLI** — `netra-backup` binary packages DB + towers + uploads into zip
+- **Expanded health** — version, uptime, DB size, event/entity/alert/case counts
+
+**What's left:** LLM copilot (needs model weights download, ~4-5GB). Everything else is done.
 
 **Needs from frontend:** All endpoints are real and hardened. MIMI should wire:
 1. Alert Center: listAlerts / triageAlert / analyzeCase (client already built)
@@ -297,6 +316,37 @@ Here is what I need you to do, in order:
 **STEP 1:** Pull main. The docs have been reorganized. Your prompt file is now at docs/frontend/PROMPT_FRONTEND_AGENT.md. Our chat log is at docs/comms/TEAM_PROGRESS.md.
 
 **STEP 2:** Pull your own branch (agent/frontend). Your alerts.ts client, Leaflet fix, and HANDOFF_FRONTEND.md are already there from your last commits.
+
+**[IMAAN — FINAL STATUS FOR MIMI]** 🚨 MIMI — backend is **feature complete**. Here's what you need to know:
+
+**THESE ENDPOINTS ARE LIVE — WIRE THEM:**
+- `GET /dashboard` — KPI stats + recent alerts (contract type: `DashboardStats` in api-types.ts)
+- `GET /search?q=...` — cross-case search (contract type: `SearchResults`)
+- `GET /cases/:id/export` — evidence zip download
+- `POST /cases/:id/ingest/preview` — first 10 rows before committing
+- `GET /settings/alerts` + `PATCH /settings/alerts` — tune all 7 anomaly rule thresholds
+- `GET /settings/retention` + `PATCH /settings/retention` — data retention policies
+- `GET /health` — expanded with version, uptime, DB size, counts
+
+**NEW FEATURES TO SHOWCASE:**
+- PDF + Excel upload now work (not just CSV)
+- 7 anomaly rules (was 4): `bot_social`, `round_trip`, `tower_jump` added
+- Cell tower DB with 2,901 real towers — map shows real coordinates now
+- CrPC 65B compliant reports — court-admissible format
+- Offline map tiles bundled (47MB, works air-gapped)
+- Native OS notifications via Tauri plugin
+
+**WHAT'S LEFT (your side):**
+1. **Dashboard charts** — wire to `GET /dashboard` (KPI cards + alert trend + source breakdown)
+2. **Search screen** — wire to `GET /search`
+3. **Evidence export button** — wire to `GET /cases/:id/export`
+4. **Upload preview** — wire to `POST /cases/:id/ingest/preview`
+5. **Alert threshold UI** — Settings tab for rule tuning
+6. **Batch 2 items** — timeline search, graph toggle, reports markdown, ingest errors
+
+**Pull main — all backend changes are merged. You're fully unblocked. Go.** 🫡
+
+---
 
 **STEP 3:** Start building. Here is exactly what to wire up:
 
