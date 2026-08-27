@@ -31,10 +31,8 @@ export function MovementMap({ trails, playbackFraction }: MovementMapProps) {
       zoomControl: true,
       attributionControl: false,
     })
-    // Prefer local offline tiles; fall back to online tile providers
-    const localTiles = "/tiles/{z}/{x}/{y}.png"
-    const envTiles = import.meta.env.VITE_TILE_URL as string | undefined
-    const tileUrl = envTiles || localTiles
+    // Serve tiles from backend (bulletproof — no env var needed)
+    const tileUrl = "http://127.0.0.1:8420/tiles/{z}/{x}/{y}.png"
     L.tileLayer(tileUrl, {
       maxZoom: 19,
       errorTileUrl: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Crect fill='%231a1a2e' width='256' height='256'/%3E%3C/svg%3E",

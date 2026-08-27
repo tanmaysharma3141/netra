@@ -58,6 +58,8 @@ export function ForceGraph({ nodes, edges, selectedId, onNodeClick }: ForceGraph
   const edgeSelRef = useRef<d3.Selection<SVGLineElement, SimLink, SVGGElement, unknown> | null>(null)
   const adjacencyRef = useRef<Map<string, Set<string>>>(new Map())
   const dataKeyRef = useRef<string>("")
+  const onNodeClickRef = useRef(onNodeClick)
+  onNodeClickRef.current = onNodeClick
 
   // Initialize / rebuild simulation ONLY when nodes or edges actually change
   useEffect(() => {
@@ -120,17 +122,18 @@ export function ForceGraph({ nodes, edges, selectedId, onNodeClick }: ForceGraph
         d3
           .forceLink<ForceGraphNode, SimLink>(simLinks)
           .id((n) => n.id)
-          .distance((l) => 90 - Math.min(50, Math.log2(l.edge.evidence_count + 1) * 8))
-          .strength(0.5),
+          .distance((l) => 100 - Math.min(40, Math.log2(l.edge.evidence_count + 1) * 6))
+          .strength(0.3),
       )
-      .force("charge", d3.forceManyBody().strength(-220))
-      .force("center", d3.forceCenter(width / 2, height / 2))
+      .force("charge", d3.forceManyBody().strength(-350).distanceMax(400))
+      .force("center", d3.forceCenter(width / 2, height / 2).strength(0.05))
       .force(
         "collide",
-        d3.forceCollide<ForceGraphNode>((n) => nodeRadius(n.type, degreeById.get(n.id) ?? 0) + 4),
+        d3.forceCollide<ForceGraphNode>((n) => nodeRadius(n.type, degreeById.get(n.id) ?? 0) + 8)
+          .iterations(3),
       )
-      .alphaDecay(0.03)  // Slower decay = smoother settling
-      .velocityDecay(0.4) // More friction = less jitter
+      .alphaDecay(0.02)  // Slower decay = smoother settling
+      .velocityDecay(0.45) // More friction = less jitter
 
     const adjacency = new Map<string, Set<string>>()
     for (const link of simLinks) {
@@ -184,7 +187,7 @@ export function ForceGraph({ nodes, edges, selectedId, onNodeClick }: ForceGraph
 
     nodeSel.on("click", (event: MouseEvent, n) => {
       event.stopPropagation()
-      onNodeClick?.(n.id)
+      onNodeClickRef.current?.(n.id)
     })
 
     nodeSel.call(
@@ -241,7 +244,7 @@ export function ForceGraph({ nodes, edges, selectedId, onNodeClick }: ForceGraph
       simulation.stop()
       dataKeyRef.current = ""
     }
-  }, [nodes, edges, onNodeClick])
+  }, [nodes, edges])
 
   // Selection highlight — runs separately, does NOT restart simulation
   useEffect(() => {

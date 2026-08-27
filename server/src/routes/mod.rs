@@ -90,5 +90,10 @@ pub fn router(state: AppState, login_limiter: std::sync::Arc<crate::ratelimit::R
         .route("/health", get(health::health))
         .route("/ws", get(ws::handler))
         .nest("/api/v1", api)
+        .nest_service(
+            "/tiles",
+            tower_http::services::ServeDir::new("../client/public/tiles")
+                .append_index_html_on_directories(false),
+        )
         .with_state(state)
 }
