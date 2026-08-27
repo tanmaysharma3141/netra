@@ -18,6 +18,7 @@ export function GraphPanel({ caseId }: { caseId: string }) {
   const [focusDraft, setFocusDraft] = useState("")
   const [focusEntityId, setFocusEntityId] = useState<string | undefined>(undefined)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<"simple" | "full">("full")
 
   const graphQuery = useQuery({
     queryKey: ["graph", caseId, hops, focusEntityId],
@@ -39,7 +40,10 @@ export function GraphPanel({ caseId }: { caseId: string }) {
   })
 
   const nodes = graphQuery.data?.nodes ?? []
-  const edges = graphQuery.data?.edges ?? []
+  const allEdges = graphQuery.data?.edges ?? []
+  const edges = viewMode === "simple"
+    ? allEdges.filter((e) => e.tier === "high")
+    : allEdges
 
   const degreeById = useMemo(() => {
     const map = new Map<string, number>()
@@ -94,6 +98,19 @@ export function GraphPanel({ caseId }: { caseId: string }) {
             Focus
           </Button>
         </form>
+        <div className="flex items-center gap-1" role="group" aria-label="View mode">
+          {(["simple", "full"] as const).map((mode) => (
+            <Button
+              key={mode}
+              size="sm"
+              variant={viewMode === mode ? "secondary" : "ghost"}
+              onClick={() => setViewMode(mode)}
+              className="h-7 px-2 font-mono text-xs"
+            >
+              {mode === "simple" ? "Simple" : "Full"}
+            </Button>
+          ))}
+        </div>
         <Button
           size="sm"
           variant="ghost"

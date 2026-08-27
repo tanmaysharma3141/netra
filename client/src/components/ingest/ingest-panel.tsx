@@ -18,6 +18,20 @@ interface TrackedJob {
 
 const POLL_INTERVAL_MS = 1_500
 
+function humanizeError(raw: string): string {
+  if (raw.includes("column") && raw.includes("not found")) {
+    const col = raw.match(/column\s+['"]?([^'"\s]+)['"]?/i)?.[1]
+    return col ? `Column "${col}" not recognized — file may use a non-standard header name` : raw
+  }
+  if (raw.includes("failed to parse")) {
+    const field = raw.match(/field\s+(\d+)/i)?.[1]
+    return field ? `Row has too few columns (expected field ${field} is missing)` : raw
+  }
+  if (raw.includes("empty file")) return "File is empty — no data rows found"
+  if (raw.includes("encoding")) return "File encoding not supported — save as UTF-8 CSV"
+  return raw
+}
+
 export function IngestPanel({ caseId }: { caseId: string }) {
   const queryClient = useQueryClient()
   const [jobs, setJobs] = useState<TrackedJob[]>([])
@@ -229,7 +243,7 @@ function JobRow({
           <ul className="border-border mt-1.5 space-y-1 border-l pl-3">
             {job.errors.slice(0, 20).map((error, i) => (
               <li key={i} className="font-mono text-[11px] text-muted-foreground">
-                {error}
+                {humanizeError(error)}
               </li>
             ))}
             {job.errors.length > 20 ? (

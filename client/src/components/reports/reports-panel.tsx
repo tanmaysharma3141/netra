@@ -9,6 +9,7 @@ import {
   FilePlus,
   RefreshCw,
 } from "lucide-react"
+import Markdown from "react-markdown"
 import { ApiClientError } from "@/api/client"
 import { API_BASE_URL } from "@/lib/env"
 import { getToken } from "@/lib/secureStore"
@@ -218,9 +219,13 @@ function ReportCard({ report }: { report: Report }) {
           <p className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
             Summary
           </p>
-          <p className="mt-1 line-clamp-4 font-mono text-xs leading-relaxed">
-            {report.summary_md || "No summary generated."}
-          </p>
+          {report.summary_md ? (
+            <div className="prose prose-invert prose-xs mt-1 max-w-none font-mono text-xs leading-relaxed">
+              <Markdown>{report.summary_md}</Markdown>
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">No summary generated.</p>
+          )}
         </div>
 
         {/* Actions */}

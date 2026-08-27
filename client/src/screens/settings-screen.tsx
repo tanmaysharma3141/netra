@@ -22,6 +22,11 @@ import {
   triggerTraining,
   type WebhookConfig,
 } from "@/api/settings"
+import {
+  getAlertThresholds,
+  updateAlertThresholds,
+  type AlertThresholds,
+} from "@/api/alerts-config"
 import { ApiClientError } from "@/api/client"
 import type { Role, User } from "@/api/types"
 import { useAuth } from "@/auth/AuthContext"
@@ -52,11 +57,12 @@ import {
 
 const ROLES: readonly Role[] = ["admin", "supervisor", "investigator", "analyst"]
 
-type SettingsTab = "users" | "webhooks" | "models" | "training"
+type SettingsTab = "users" | "webhooks" | "models" | "training" | "alerts"
 
 const TABS: readonly { id: SettingsTab; label: string; icon: typeof Settings }[] = [
   { id: "users", label: "Users", icon: UserPlus },
   { id: "webhooks", label: "Webhooks", icon: Webhook },
+  { id: "alerts", label: "Alert Rules", icon: AlertTriangle },
   { id: "models", label: "AI Models", icon: Bot },
   { id: "training", label: "Training", icon: Train },
 ]
@@ -118,6 +124,7 @@ export function SettingsScreen() {
         <div className="min-w-0 flex-1">
           {activeTab === "users" && <UserManagementSection />}
           {activeTab === "webhooks" && <WebhookSection />}
+          {activeTab === "alerts" && <AlertThresholdsSection />}
           {activeTab === "models" && <ModelSection />}
           {activeTab === "training" && <TrainingSection />}
         </div>
@@ -596,6 +603,118 @@ function ModelSection() {
         </Card>
       )}
     </section>
+  )
+}
+
+/* ── Alert Thresholds ── */
+
+function AlertThresholdsSection() {
+  const queryClient = useQueryClient()
+  const thresholdsQuery = useQuery({
+    queryKey: ["alert-thresholds"],
+    queryFn: getAlertThresholds,
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: (t: Partial<AlertThresholds>) => updateAlertThresholds(t),
+    onSuccess: () => {
+      toast.success("Alert thresholds updated")
+      void queryClient.invalidateQueries({ queryKey: ["alert-thresholds"] })
+    },
+    onError: (err) => {
+      toast.error("Could not update thresholds", {
+        description: err instanceof ApiClientError ? err.message : "Unexpected error.",
+      })
+    },
+  })
+
+  if (thresholdsQuery.isPending) return <Skeleton className="h-64 w-full" />
+  if (thresholdsQuery.isError) return (
+    <Alert variant="destructive">
+      <AlertTriangle className="size-4" aria-hidden />
+      <AlertTitle>Failed to load thresholds</AlertTitle>
+      <AlertDescription>{(thresholdsQuery.error as { message?: string }).message ?? "Unknown error."}</AlertDescription>
+    </Alert>
+  )
+
+  const t = thresholdsQuery.data!
+
+  return (
+    <section>
+      <div className="mb-4">
+        <h2 className="text-sm font-semibold">Alert Detection Thresholds</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Tune sensitivity for each anomaly detection rule. Changes apply to the next analysis run.
+        </p>
+      </div>
+      <Card>
+        <CardContent className="space-y-6 p-4">
+          <ThresholdGroup title="IMEI Reuse" fields={[
+            { key: "imei_min_subscribers", label: "Min subscribers per IMEI", value: t.imei_min_subscribers, min: 2, max: 20 },
+            { key: "imei_min_evidence", label: "Min evidence events", value: t.imei_min_evidence, min: 10, max: 200 },
+          ]} onChange={(k, v) => updateMutation.mutate({ [k]: v })} />
+          <ThresholdGroup title="Hawala Signature" fields={[
+            { key: "hawala_window_hours", label: "Window (hours)", value: t.hawala_window_hours, min: 12, max: 168 },
+            { key: "hawala_min_txns", label: "Min transactions", value: t.hawala_min_txns, min: 2, max: 20 },
+            { key: "hawala_min_total", label: "Min total amount", value: t.hawala_min_total, min: 10000, max: 500000 },
+            { key: "hawala_max_total", label: "Max total amount", value: t.hawala_max_total, min: 50000, max: 1000000 },
+          ]} onChange={(k, v) => updateMutation.mutate({ [k]: v })} />
+          <ThresholdGroup title="Rapid Transfer" fields={[
+            { key: "rapid_window_minutes", label: "Window (minutes)", value: t.rapid_window_minutes, min: 15, max: 240 },
+            { key: "rapid_min_txns", label: "Min transactions", value: t.rapid_min_txns, min: 2, max: 20 },
+            { key: "rapid_min_flow", label: "Min total flow", value: t.rapid_min_flow, min: 50000, max: 2000000 },
+          ]} onChange={(k, v) => updateMutation.mutate({ [k]: v })} />
+          <ThresholdGroup title="Coordinated Silence" fields={[
+            { key: "silence_min_parties", label: "Min parties silent", value: t.silence_min_parties, min: 2, max: 10 },
+          ]} onChange={(k, v) => updateMutation.mutate({ [k]: v })} />
+          <ThresholdGroup title="Bot Social Activity" fields={[
+            { key: "bot_min_posts", label: "Min posts", value: t.bot_min_posts, min: 3, max: 100 },
+            { key: "bot_max_interval_secs", label: "Max interval (secs)", value: t.bot_max_interval_secs, min: 60, max: 3600 },
+          ]} onChange={(k, v) => updateMutation.mutate({ [k]: v })} />
+          <ThresholdGroup title="Round-Trip Transfer" fields={[
+            { key: "round_trip_window_hours", label: "Window (hours)", value: t.round_trip_window_hours, min: 12, max: 168 },
+          ]} onChange={(k, v) => updateMutation.mutate({ [k]: v })} />
+          <ThresholdGroup title="Tower Jump" fields={[
+            { key: "tower_jump_max_minutes", label: "Max time (minutes)", value: t.tower_jump_max_minutes, min: 5, max: 120 },
+            { key: "tower_jump_min_km", label: "Min distance (km)", value: t.tower_jump_min_km, min: 10, max: 200 },
+          ]} onChange={(k, v) => updateMutation.mutate({ [k]: v })} />
+        </CardContent>
+      </Card>
+    </section>
+  )
+}
+
+function ThresholdGroup({
+  title,
+  fields,
+  onChange,
+}: {
+  title: string
+  fields: { key: string; label: string; value: number; min: number; max: number }[]
+  onChange: (key: string, value: number) => void
+}) {
+  return (
+    <div>
+      <h3 className="mb-2 font-mono text-[11px] tracking-wider text-muted-foreground uppercase">{title}</h3>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {fields.map((f) => (
+          <div key={f.key} className="space-y-1">
+            <Label className="text-xs text-muted-foreground">{f.label}</Label>
+            <Input
+              type="number"
+              defaultValue={f.value}
+              min={f.min}
+              max={f.max}
+              className="font-mono text-xs"
+              onBlur={(e) => {
+                const v = parseFloat(e.target.value)
+                if (!isNaN(v)) onChange(f.key, v)
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
   )
 }
 
