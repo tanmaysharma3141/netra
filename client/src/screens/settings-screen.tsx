@@ -52,8 +52,18 @@ import {
 
 const ROLES: readonly Role[] = ["admin", "supervisor", "investigator", "analyst"]
 
+type SettingsTab = "users" | "webhooks" | "models" | "training"
+
+const TABS: readonly { id: SettingsTab; label: string; icon: typeof Settings }[] = [
+  { id: "users", label: "Users", icon: UserPlus },
+  { id: "webhooks", label: "Webhooks", icon: Webhook },
+  { id: "models", label: "AI Models", icon: Bot },
+  { id: "training", label: "Training", icon: Train },
+]
+
 export function SettingsScreen() {
   const { can } = useAuth()
+  const [activeTab, setActiveTab] = useState<SettingsTab>("users")
 
   if (!can("users.manage")) {
     return (
@@ -75,21 +85,43 @@ export function SettingsScreen() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 p-6">
-      <header className="mb-2">
+    <div className="mx-auto max-w-6xl p-6">
+      <header className="mb-6">
         <h1 className="text-lg font-semibold">Settings</h1>
         <p className="text-sm text-muted-foreground">
           System administration — users, webhooks, models, and training.
         </p>
       </header>
 
-      <UserManagementSection />
-      <Separator />
-      <WebhookSection />
-      <Separator />
-      <ModelSection />
-      <Separator />
-      <TrainingSection />
+      <div className="flex gap-6">
+        {/* Vertical tab sidebar */}
+        <nav className="w-48 shrink-0 space-y-1" aria-label="Settings sections">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex w-full items-center gap-2.5 rounded-sm px-3 py-2 text-sm transition-colors ${
+                activeTab === tab.id
+                  ? "bg-sidebar-accent font-medium text-sidebar-primary"
+                  : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+              }`}
+            >
+              <tab.icon className="size-4 shrink-0" aria-hidden />
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+
+        <Separator orientation="vertical" className="h-auto self-stretch" />
+
+        {/* Tab content */}
+        <div className="min-w-0 flex-1">
+          {activeTab === "users" && <UserManagementSection />}
+          {activeTab === "webhooks" && <WebhookSection />}
+          {activeTab === "models" && <ModelSection />}
+          {activeTab === "training" && <TrainingSection />}
+        </div>
+      </div>
     </div>
   )
 }
@@ -106,12 +138,9 @@ function UserManagementSection() {
 
   return (
     <section>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <UserPlus className="size-4 text-muted-foreground" aria-hidden />
-            User Management
-          </h2>
+          <h2 className="text-sm font-semibold">User Management</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Create, edit, and deactivate user accounts.
           </p>
@@ -376,11 +405,8 @@ function WebhookSection() {
 
   return (
     <section>
-      <div className="mb-3">
-        <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Webhook className="size-4 text-muted-foreground" aria-hidden />
-          Webhook Configuration
-        </h2>
+      <div className="mb-4">
+        <h2 className="text-sm font-semibold">Webhook Configuration</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Configure Discord and Telegram notification webhooks.
         </p>
@@ -474,11 +500,8 @@ function ModelSection() {
 
   return (
     <section>
-      <div className="mb-3">
-        <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Bot className="size-4 text-muted-foreground" aria-hidden />
-          Model Versions
-        </h2>
+      <div className="mb-4">
+        <h2 className="text-sm font-semibold">Model Versions</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Manage LLM model versions and promote active models.
         </p>
@@ -602,11 +625,8 @@ function TrainingSection() {
 
   return (
     <section>
-      <div className="mb-3">
-        <h2 className="flex items-center gap-2 text-sm font-semibold">
-          <Train className="size-4 text-muted-foreground" aria-hidden />
-          Training Queue
-        </h2>
+      <div className="mb-4">
+        <h2 className="text-sm font-semibold">Training Queue</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Monitor the feedback queue and trigger manual retraining.
         </p>

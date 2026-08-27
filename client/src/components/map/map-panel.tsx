@@ -16,8 +16,9 @@ export function MapPanel({ caseId }: { caseId: string }) {
   })
   const [playing, setPlaying] = useState(false)
   const [fraction, setFraction] = useState(1)
+  const [selectedEntity, setSelectedEntity] = useState<string>("all")
 
-  const trails = useMemo(
+  const allTrails = useMemo(
     () =>
       (movementsQuery.data?.trails ?? [])
         .map((trail) => ({
@@ -29,6 +30,11 @@ export function MapPanel({ caseId }: { caseId: string }) {
         }))
         .filter((trail) => trail.points.length > 0),
     [movementsQuery.data],
+  )
+
+  const trails = useMemo(
+    () => selectedEntity === "all" ? allTrails : allTrails.filter((t) => t.entityId === selectedEntity),
+    [allTrails, selectedEntity],
   )
 
   // Playback loop: sweep the visible fraction 0 → 1.
@@ -51,6 +57,15 @@ export function MapPanel({ caseId }: { caseId: string }) {
     setPlaying(true)
   }
 
+  // Auto-play on first data load
+  useEffect(() => {
+    if (allTrails.length > 0 && fraction === 1 && !playing) {
+      restartPlayback()
+    }
+    // Only trigger on first load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allTrails.length > 0])
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="border-border mb-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-b pb-3">
@@ -58,6 +73,25 @@ export function MapPanel({ caseId }: { caseId: string }) {
           {trails.length} trail{trails.length === 1 ? "" : "s"} ·{" "}
           {trails.reduce((sum, t) => sum + t.points.length, 0).toLocaleString("en-IN")} pings
         </span>
+        {allTrails.length > 1 && (
+          <select
+            value={selectedEntity}
+            onChange={(e) => {
+              setSelectedEntity(e.target.value)
+              setFraction(0)
+              setPlaying(true)
+            }}
+            className="border-input bg-background h-7 rounded-sm border px-2 font-mono text-xs"
+            aria-label="Track entity"
+          >
+            <option value="all">All entities</option>
+            {allTrails.map((t) => (
+              <option key={t.entityId} value={t.entityId}>
+                {t.label.slice(0, 16)} ({t.points.length} pings)
+              </option>
+            ))}
+          </select>
+        )}
         <div className="ml-auto flex items-center gap-2">
           {trails.length > 0 ? (
             <>

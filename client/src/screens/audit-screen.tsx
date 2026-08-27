@@ -125,10 +125,21 @@ export function AuditScreen() {
 }
 
 function AuditEntries({ caseId }: { caseId: string }) {
+  const [actionFilter, setActionFilter] = useState<string>("all")
+
   const auditQuery = useQuery({
     queryKey: ["audit", caseId],
     queryFn: () => listAuditEntries(caseId),
   })
+
+  const entries = auditQuery.data ?? []
+
+  // Derive available action types from entries
+  const actionTypes = [...new Set(entries.map((e) => e.action))].sort()
+
+  const filtered = actionFilter === "all"
+    ? entries
+    : entries.filter((e) => e.action === actionFilter)
 
   if (auditQuery.isPending) {
     return (
@@ -161,8 +172,6 @@ function AuditEntries({ caseId }: { caseId: string }) {
     )
   }
 
-  const entries = auditQuery.data ?? []
-
   if (entries.length === 0) {
     return (
       <Card className="border-dashed">
@@ -179,8 +188,31 @@ function AuditEntries({ caseId }: { caseId: string }) {
 
   return (
     <div className="space-y-3">
+      {/* Action filter */}
+      {actionTypes.length > 1 && (
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
+            Filter:
+          </span>
+          <select
+            value={actionFilter}
+            onChange={(e) => setActionFilter(e.target.value)}
+            className="border-input bg-background h-7 rounded-sm border px-2 font-mono text-xs"
+          >
+            <option value="all">All actions</option>
+            {actionTypes.map((action) => (
+              <option key={action} value={action}>
+                {action}
+              </option>
+            ))}
+          </select>
+          <span className="font-mono text-[10px] text-muted-foreground">
+            {filtered.length} of {entries.length} entries
+          </span>
+        </div>
+      )}
       <p className="font-mono text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
-        {entries.length} entries (newest first)
+        {filtered.length} entries (newest first)
       </p>
       <Card className="py-0">
         <Table>
@@ -193,7 +225,7 @@ function AuditEntries({ caseId }: { caseId: string }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {entries.map((entry) => (
+            {filtered.map((entry) => (
               <TableRow key={entry.id}>
                 <TableCell className="font-mono text-xs whitespace-nowrap text-muted-foreground">
                   {formatTimestamp(entry.at)}

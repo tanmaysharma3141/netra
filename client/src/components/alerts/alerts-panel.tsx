@@ -31,7 +31,7 @@ import { Textarea } from "@/components/ui/textarea"
 type SeverityFilter = "all" | Severity
 type StatusFilter = "all" | AlertStatus
 
-const STATUS_OPTIONS: readonly (StatusFilter)[] = ["all", "open", "reviewing", "confirmed", "false_positive"]
+const STATUS_OPTIONS: readonly (StatusFilter)[] = ["all", "open", "confirmed", "false_positive"]
 
 const STATUS_BADGE_CLASS: Record<AlertStatus, string> = {
   open: "border-severity-high/40 bg-severity-high/10 text-severity-high",
@@ -416,14 +416,7 @@ function AlertDetailSheet({
                       <X className="mr-1 size-3.5" aria-hidden />
                       False Positive
                     </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleTriage("reviewing")}
-                      disabled={triageMutation.isPending}
-                    >
-                      Needs Review
-                    </Button>
+
                   </div>
                 </div>
               </div>
