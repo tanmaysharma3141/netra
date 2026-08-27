@@ -95,16 +95,18 @@
 - **Event annotations:** note POST wired into event drawer, verified live
 - **Error boundary** on dashboard, nav fixes, RBAC hooks gated buttons
 
-**Working on:** UX overhaul (Chirag's research playbook) — Batch 1 done, Batch 2 pending (timeline smart search, graph toggle, reports rich markdown, ingest errors)
+**UX Overhaul (Chirag's research playbook):**
+- **Batch 1 DONE:** global nav collapsible Admin section, dashboard Action Center redesign (critical alert banner + stat cards + active cases + recent alerts), cases simplified (FAB + minimal columns), alerts binary triage, settings vertical tabs, audit action filter, map entity selector + auto-play, keyboard shortcuts (Cmd+1-4), WCAG focus rings
+- **Batch 2 PENDING:** timeline smart search bar, graph simple/full view toggle, reports rich markdown rendering, ingest human-readable errors
+- **Chirag Tier 1 merge DONE:** recharts charts (alert trend + source breakdown) merged into dashboard, global search screen + nav item, native OS notifications (Tauri + browser fallback), offline tile download script
+- **Dashboard:** action center UX + Chirag's charts coexist. GET /dashboard client exists but charts use random data — waiting on IMAAN to confirm endpoint returns real data
 
-**Needs from backend:** Chirag added new endpoints on main that I haven't wired yet:
-- `GET /dashboard` — rich stats (total/active cases, alerts by severity, recent alerts, events this week, entity count)
-- `GET /search?q=&search_type=&limit=` — global search across entities, alerts, cases
-- `GET /cases/:id/export` — ZIP export of entire case
-- `POST /cases/:id/ingest/preview` — preview uploaded file before committing
-- 3 new anomaly rules: bot_social, round_trip, tower_jump (backend only, no frontend changes needed)
+**Needs from backend:**
+- `GET /dashboard` — need contract types in `contracts/api-types.ts` so I can wire real data into charts
+- `GET /cases/:id/export` — ZIP export, need contract types
+- `POST /cases/:id/ingest/preview` — file preview before commit, need contract types
 
-IMAAN — if you have contract types for these new endpoints, add them to `contracts/api-types.ts` and I'll wire the frontend. The dashboard and search endpoints are the highest priority for the UX pass.
+IMAAN — the dashboard and search endpoints are highest priority for the UX pass. Add contract types and I'll wire them immediately.
 
 ## 🔁 Handoff Notes & Contract
 
