@@ -96,6 +96,12 @@ const CDR_ALIASES: Aliases = &[
     ("operatorname", "operator"),
     ("operator", "operator"),
     ("circle", "circle"),
+    ("lat", "lat"),
+    ("latitude", "lat"),
+    ("lng", "lng"),
+    ("lon", "lng"),
+    ("longitude", "lng"),
+    ("phone", "phone"),
 ];
 
 const BANK_ALIASES: Aliases = &[
@@ -127,6 +133,14 @@ const BANK_ALIASES: Aliases = &[
     ("accountnumber", "account"),
     ("account", "account"),
     ("acct", "account"),
+    ("counterparty", "counterparty"),
+    ("beneficiary", "counterparty"),
+    ("payee", "counterparty"),
+    ("accountname", "account_name"),
+    ("name", "account_name"),
+    ("holder", "account_name"),
+    ("beneficiaryname", "account_name"),
+    ("accountname", "account_name"),
 ];
 
 const IPDR_ALIASES: Aliases = &[

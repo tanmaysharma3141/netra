@@ -47,10 +47,10 @@ pub async fn upload(
             .and_then(|e| e.to_str())
             .unwrap_or("")
             .to_lowercase();
-        if !matches!(ext.as_str(), "csv" | "tsv" | "txt" | "zip") {
+        if !matches!(ext.as_str(), "csv" | "tsv" | "txt" | "zip" | "xlsx" | "xls" | "pdf" | "docx") {
             return Err(ApiError::new(
                 "bad_request",
-                format!("unsupported file type '.{ext}'; accepted: .csv, .tsv, .txt, .zip"),
+                format!("unsupported file type '.{ext}'; accepted: .csv, .tsv, .txt, .zip, .xlsx, .xls, .pdf, .docx"),
             )
             .into_response(StatusCode::BAD_REQUEST));
         }
