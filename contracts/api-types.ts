@@ -128,3 +128,71 @@ export interface ApiError {
 export interface AddNoteRequest {
   note: string;
 }
+
+// ── Dashboard ──────────────────────────────────────────────────────
+export interface DashboardStats {
+  total_cases: number;
+  active_cases: number;
+  alerts_by_severity: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+  recent_alerts: Alert[];
+  events_this_week: number;
+  entities_count: number;
+}
+
+// ── Cross-case search ──────────────────────────────────────────────
+export interface SearchResults {
+  results: SearchResult[];
+  total: number;
+}
+
+export interface SearchResult {
+  result_type: 'entity' | 'alert' | 'case';
+  case_id: string;
+  case_title: string;
+  identifier: string;
+  detail: Record<string, unknown>;
+}
+
+// ── Ingest preview ─────────────────────────────────────────────────
+export interface IngestPreview {
+  headers: string[];
+  rows: string[][];
+  total_rows: number;
+  detected_domain: string | null;
+  detected_operator: string | null;
+}
+
+// ── Settings: alert thresholds ─────────────────────────────────────
+export interface AlertThresholds {
+  imei_reuse: { min_subscribers: number; severity: Severity };
+  hawala_signature: { min_deposits: number; max_amount: number; window_hours: number; severity: Severity };
+  rapid_transfer: { min_transfers: number; min_total: number; window_minutes: number; severity: Severity };
+  coordinated_silence: { quiet_hours: number; min_parties: number; severity: Severity };
+  bot_social: { min_std_ratio: number; severity: Severity };
+  round_trip: { window_hours: number; severity: Severity };
+  tower_jump: { max_minutes: number; min_distance_km: number; severity: Severity };
+}
+
+// ── Settings: data retention ───────────────────────────────────────
+export interface RetentionConfig {
+  archive_after_days: number;
+  delete_after_days: number;
+  enabled: boolean;
+}
+
+// ── Health ─────────────────────────────────────────────────────────
+export interface HealthStatus {
+  status: string;
+  version: string;
+  uptime_seconds: number;
+  db_size_bytes: number;
+  event_count: number;
+  entity_count: number;
+  alert_count: number;
+  case_count: number;
+}

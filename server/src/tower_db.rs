@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use sqlx::SqlitePool;
 
 #[derive(Debug, Clone, serde::Serialize)]

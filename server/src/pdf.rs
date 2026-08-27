@@ -120,7 +120,7 @@ fn markdown_to_html(title: &str, markdown: &str) -> String {
 
     let now = chrono::Utc::now().format("%Y-%m-%d %H:%M UTC");
     html.push_str(&format!(
-        r#"<div class="footer">NETRA Intelligence Report | Generated {}</div>
+        r#"<div class="footer">NETRA Forensic Intelligence Platform v0.1 | CrPC Section 65B Compliant | Generated {} | Confidential</div>
 </body>
 </html>"#,
         now

@@ -229,9 +229,9 @@ pub async fn resolve_case(pool: &SqlitePool, case_id: Uuid) -> Result<ResolveSta
     // ─── Probabilistic pass ────────────────────────────────────────────
 
     // 1. Name similarity (Jaro-Winkler) across entities with names
+    // Blocking: only compare entities whose names share the same first 2 chars
     let name_entities: Vec<(EntityKey, String)> = entity_raw_fields.iter()
         .filter_map(|(k, fields)| {
-            // Look for fields that look like names (contain letters, reasonable length)
             let name = fields.iter().find(|f| {
                 f.len() >= 3 && f.len() <= 100 && f.chars().any(|c| c.is_alphabetic())
                     && !f.starts_with("platform:") && !f.starts_with("operator:")
@@ -240,54 +240,95 @@ pub async fn resolve_case(pool: &SqlitePool, case_id: Uuid) -> Result<ResolveSta
         })
         .collect();
 
-    for i in 0..name_entities.len() {
-        for j in (i + 1)..name_entities.len() {
-            let (ref k_a, ref name_a) = name_entities[i];
-            let (ref k_b, ref name_b) = name_entities[j];
+    // Build blocking index: first 2 alphanumeric chars → list of (index, name)
+    let mut name_blocking: HashMap<String, Vec<(usize, &str)>> = HashMap::new();
+    for (i, (_k, name)) in name_entities.iter().enumerate() {
+        let block_key: String = name.chars().filter(|c| c.is_alphanumeric()).take(2).collect();
+        name_blocking.entry(block_key).or_default().push((i, name));
+    }
 
-            // Skip same entity type with same identifier (already linked deterministically)
-            if key_type(k_a) == key_type(k_b) {
-                continue;
+    // Only compare within same blocking bucket
+    let mut name_comparisons: u64 = 0;
+    for bucket in name_blocking.values() {
+        for idx_a in 0..bucket.len() {
+            for idx_b in (idx_a + 1)..bucket.len() {
+                let (i, name_a) = bucket[idx_a];
+                let (j, name_b) = bucket[idx_b];
+                let (ref k_a, _) = name_entities[i];
+                let (ref k_b, _) = name_entities[j];
+                name_comparisons += 1;
+
+                if key_type(k_a) == key_type(k_b) {
+                    continue;
+                }
+
+                let similarity = jaro_winkler(name_a, name_b);
+                if similarity >= 0.85 {
+                    let tier = if similarity >= 0.95 { Tier::High } else { Tier::Medium };
+                    add_edge!(k_a, k_b, "name_match", tier, similarity);
+                    stats.probabilistic_links += 1;
+                }
             }
+        }
+    }
+    tracing::debug!(name_comparisons, "name blocking reduced comparisons");
 
-            let similarity = jaro_winkler(name_a, name_b);
-            if similarity >= 0.85 {
-                let tier = if similarity >= 0.95 { Tier::High } else { Tier::Medium };
-                add_edge!(k_a, k_b, "name_match", tier, similarity);
-                stats.probabilistic_links += 1;
+    // 2. Temporal proximity: events from different entities happening within 5 minutes
+    // Blocking: only compare entities that share events on the same date
+    let spacetime_list: Vec<(&EntityKey, &Vec<(String, Option<f64>, Option<f64>)>)> = entity_spacetime.iter().collect();
+
+    // Build date→entity index for blocking
+    let mut date_index: HashMap<String, Vec<usize>> = HashMap::new();
+    for (i, (_k, events)) in spacetime_list.iter().enumerate() {
+        let mut dates_seen = std::collections::HashSet::new();
+        for (ts, _, _) in events.iter() {
+            if let Some(dt) = chrono::DateTime::parse_from_rfc3339(ts).ok() {
+                let date_key = dt.format("%Y-%m-%d").to_string();
+                if dates_seen.insert(date_key.clone()) {
+                    date_index.entry(date_key).or_default().push(i);
+                }
             }
         }
     }
 
-    // 2. Temporal proximity: events from different entities happening within 5 minutes
-    let spacetime_list: Vec<(&EntityKey, &Vec<(String, Option<f64>, Option<f64>)>)> = entity_spacetime.iter().collect();
-    for i in 0..spacetime_list.len() {
-        for j in (i + 1)..spacetime_list.len() {
-            let (ref k_a, events_a) = spacetime_list[i];
-            let (ref k_b, events_b) = spacetime_list[j];
+    // Track pairs already checked to avoid duplicates
+    let mut checked_pairs: std::collections::HashSet<(usize, usize)> = std::collections::HashSet::new();
+    let mut co_location_comparisons: u64 = 0;
 
-            // Only link different entity types
-            if key_type(k_a) == key_type(k_b) {
-                continue;
-            }
+    for indices in date_index.values() {
+        for idx_a in 0..indices.len() {
+            for idx_b in (idx_a + 1)..indices.len() {
+                let i = indices[idx_a];
+                let j = indices[idx_b];
+                let pair_key = if i < j { (i, j) } else { (j, i) };
+                if !checked_pairs.insert(pair_key) {
+                    continue;
+                }
 
-            // Check for co-located events (same lat/lng within 0.001 degrees ≈ 100m)
-            for (ts_a, lat_a, lng_a) in events_a {
-                if let (Some(la_a), Some(lo_a)) = (lat_a, lng_a) {
-                    for (ts_b, lat_b, lng_b) in events_b {
-                        if let (Some(la_b), Some(lo_b)) = (lat_b, lng_b) {
-                            let dist = ((la_a - la_b).powi(2) + (lo_a - lo_b).powi(2)).sqrt();
-                            if dist < 0.001 {
-                                // Check temporal proximity (within 5 minutes)
-                                if let (Some(dt_a), Some(dt_b)) = (
-                                    chrono::DateTime::parse_from_rfc3339(ts_a).ok(),
-                                    chrono::DateTime::parse_from_rfc3339(ts_b).ok(),
-                                ) {
-                                    let diff = (dt_a - dt_b).num_seconds().abs();
-                                    if diff <= 300 { // 5 minutes
-                                        let conf = 0.8 - (diff as f64 / 3000.0); // Higher conf for closer times
-                                        add_edge!(k_a, k_b, "co_location", Tier::Medium, conf);
-                                        stats.probabilistic_links += 1;
+                let (ref k_a, events_a) = spacetime_list[i];
+                let (ref k_b, events_b) = spacetime_list[j];
+
+                if key_type(k_a) == key_type(k_b) {
+                    continue;
+                }
+
+                for (ts_a, lat_a, lng_a) in events_a {
+                    if let (Some(la_a), Some(lo_a)) = (lat_a, lng_a) {
+                        for (ts_b, lat_b, lng_b) in events_b {
+                            if let (Some(la_b), Some(lo_b)) = (lat_b, lng_b) {
+                                let dist = ((la_a - la_b).powi(2) + (lo_a - lo_b).powi(2)).sqrt();
+                                if dist < 0.001 {
+                                    co_location_comparisons += 1;
+                                    if let (Some(dt_a), Some(dt_b)) = (
+                                        chrono::DateTime::parse_from_rfc3339(ts_a).ok(),
+                                        chrono::DateTime::parse_from_rfc3339(ts_b).ok(),
+                                    ) {
+                                        let diff = (dt_a - dt_b).num_seconds().abs();
+                                        if diff <= 300 {
+                                            let conf = 0.8 - (diff as f64 / 3000.0);
+                                            add_edge!(k_a, k_b, "co_location", Tier::Medium, conf);
+                                            stats.probabilistic_links += 1;
+                                        }
                                     }
                                 }
                             }
@@ -297,6 +338,7 @@ pub async fn resolve_case(pool: &SqlitePool, case_id: Uuid) -> Result<ResolveSta
             }
         }
     }
+    tracing::debug!(co_location_comparisons, "co-location blocking reduced comparisons");
 
     // 3. Cross-domain: if same phone appears in CDR as subscriber AND in bank as account holder reference
     // Look for phone numbers that appear in bank raw fields
