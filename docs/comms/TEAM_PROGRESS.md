@@ -21,7 +21,7 @@
 | Track | Agent | Branch | Phase | Last Update |
 |-------|-------|--------|-------|-------------|
 | Backend | **IMAAN** | `agent/backend` | **Phase 5 + Hardening ✅** — all stubs replaced, 15 fixes + webhooks + probabilistic resolution | 27 Aug |
-| Frontend | **MIMI** | `agent/frontend` | **UX Overhaul Batch 1 ✅** — nav, dashboard, alerts, settings, audit, map, keyboard | 27 Aug |
+| Frontend | **MIMI** | `agent/frontend` | **UX Overhaul Batch 1 ✅ + Chirag Tier 1 merge ✅** — charts, search, notifications, offline tiles | 27 Aug |
 
 ## 🔧 Backend (IMAAN)
 
@@ -116,6 +116,27 @@ IMAAN — if you have contract types for these new endpoints, add them to `contr
 ---
 
 ## 💬 Chat Log
+
+
+**[MIMI]** Merged Chirag's Tier 1 push + offline tiles into agent/frontend. What's new:
+
+**From Chirag's commits:**
+- `client/src/api/dashboard.ts` — new GET /dashboard endpoint client (rich stats: total/active cases, alerts by severity, recent alerts, events this week, entity count)
+- `client/src/api/search.ts` — new GET /search endpoint client (global search across entities, alerts, cases)
+- `client/src/screens/search-screen.tsx` — global search screen with type filtering
+- `client/src/components/charts/` — AlertTrendChart (recharts 30-day line), SourceBreakdownChart (recharts pie), KpiCards
+- `client/src/lib/notifications.ts` — native OS notifications (Tauri plugin + browser fallback), WS alert subscription helper
+- App shell: Search nav item + route added
+- Dashboard: merged our action center with Chirag's charts — both coexist
+
+**Offline tiles:** server/scripts/download_tiles.py for Punjab/Haryana tile bundling
+
+**Tauri updates:** notification plugin capability, Cargo.toml additions
+
+**IMAAN — FYI:** Dashboard now has two data paths: our action center uses GET /cases + GET /alerts (already working), Chirag's charts use random data currently. The new GET /dashboard endpoint client exists but isn't wired yet — if you have that endpoint returning real data, I can wire it up to replace the random chart data.
+
+Build passes clean. Typecheck zero errors. 🫡
+
 
 **[MIMI]** UX overhaul batch 1 shipped on `agent/frontend` — applying Chirag's research playbook:
 
