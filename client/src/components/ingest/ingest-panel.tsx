@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { CheckCircle2, CloudUpload, FileWarning, Loader2, X } from "lucide-react"
+import { CheckCircle2, CloudUpload, FileWarning, Loader2, Eye, X } from "lucide-react"
 import { getIngestJob, uploadFile } from "@/api/ingest"
+import { previewFile, type PreviewResult } from "@/api/preview"
 import type { IngestJob } from "@/api/types"
 import { wsClient } from "@/api/ws"
 import { Button } from "@/components/ui/button"
@@ -37,6 +38,8 @@ export function IngestPanel({ caseId }: { caseId: string }) {
   const [jobs, setJobs] = useState<TrackedJob[]>([])
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const [preview, setPreview] = useState<{ file: File; data: PreviewResult } | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
   const jobsRef = useRef<TrackedJob[]>([])
   jobsRef.current = jobs
 
@@ -107,28 +110,45 @@ export function IngestPanel({ caseId }: { caseId: string }) {
     async (fileList: FileList | null) => {
       if (!fileList || fileList.length === 0) return
       for (const file of [...fileList]) {
+        setPreviewLoading(true)
         try {
-          const ref = await uploadFile(caseId, file)
-          setJobs((prev) => [
-            {
-              jobId: ref.job_id,
-              fileName: file.name,
-              status: "queued",
-              parsed: 0,
-              totalEst: file.size,
-              errors: [],
-            },
-            ...prev,
-          ])
+          const data = await previewFile(caseId, file)
+          setPreview({ file, data })
         } catch (err) {
-          toast.error("Upload rejected", {
+          toast.error("Preview failed", {
             description: err instanceof Error ? err.message : file.name,
           })
+        } finally {
+          setPreviewLoading(false)
         }
       }
     },
     [caseId],
   )
+
+  async function confirmUpload() {
+    if (!preview) return
+    const { file } = preview
+    setPreview(null)
+    try {
+      const ref = await uploadFile(caseId, file)
+      setJobs((prev) => [
+        {
+          jobId: ref.job_id,
+          fileName: file.name,
+          status: "queued",
+          parsed: 0,
+          totalEst: file.size,
+          errors: [],
+        },
+        ...prev,
+      ])
+    } catch (err) {
+      toast.error("Upload rejected", {
+        description: err instanceof Error ? err.message : file.name,
+      })
+    }
+  }
 
   function removeJob(jobId: string) {
     setJobs((prev) => prev.filter((j) => j.jobId !== jobId))
@@ -174,6 +194,51 @@ export function IngestPanel({ caseId }: { caseId: string }) {
           }}
         />
       </div>
+
+      {previewLoading ? (
+        <div className="flex items-center justify-center gap-2 rounded-sm border border-dashed py-8">
+          <Loader2 className="size-4 animate-spin text-muted-foreground" aria-hidden />
+          <span className="text-sm text-muted-foreground">Analyzing file...</span>
+        </div>
+      ) : preview ? (
+        <div className="space-y-3 rounded-sm border border-primary/30 bg-primary/5 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Eye className="size-4 text-primary" aria-hidden />
+              <span className="font-mono text-xs font-medium">Preview: {preview.file.name}</span>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="ghost" onClick={() => setPreview(null)}>Cancel</Button>
+              <Button size="sm" onClick={() => void confirmUpload()}>Confirm Upload</Button>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+            <span>Domain: <strong className="text-foreground">{preview.data.domain}</strong> (score: {preview.data.domain_score})</span>
+            <span>~{preview.data.estimated_rows.toLocaleString("en-IN")} rows</span>
+            {preview.data.operator && <span>Operator: {preview.data.operator}</span>}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full font-mono text-[10px]">
+              <thead>
+                <tr className="border-border border-b">
+                  {preview.data.headers.map((h, i) => (
+                    <th key={i} className="px-2 py-1 text-left text-muted-foreground">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {preview.data.sample_rows.map((row, i) => (
+                  <tr key={i} className="border-border border-b last:border-0">
+                    {row.map((cell, j) => (
+                      <td key={j} className="max-w-32 truncate px-2 py-1">{cell}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
 
       {jobs.length > 0 ? (
         <ul className="space-y-2">
