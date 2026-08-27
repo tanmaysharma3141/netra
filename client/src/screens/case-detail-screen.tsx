@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query"
 import { Link, useParams } from "react-router-dom"
-import { AlertTriangle, ArrowLeft, RefreshCw } from "lucide-react"
+import { AlertTriangle, ArrowLeft, Download, RefreshCw } from "lucide-react"
 import { getCase } from "@/api/cases"
 import type { Case } from "@/api/types"
 import {
@@ -107,9 +107,33 @@ export function CaseDetailScreen() {
             {kase.classification}
           </Badge>
         </div>
-        <p className="mt-1.5 font-mono text-xs text-muted-foreground">
-          {kase.id} · opened {new Date(kase.created_at).toLocaleString("en-IN")}
-        </p>
+        <div className="mt-1.5 flex items-center gap-3">
+          <p className="font-mono text-xs text-muted-foreground">
+            {kase.id} · opened {new Date(kase.created_at).toLocaleString("en-IN")}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto"
+            onClick={async () => {
+              const token = localStorage.getItem('netra_token')
+              const res = await fetch(`/api/v1/cases/${kase.id}/export`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+              })
+              if (!res.ok) return
+              const blob = await res.blob()
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `evidence-${kase.id.slice(0, 8)}.zip`
+              a.click()
+              URL.revokeObjectURL(url)
+            }}
+          >
+            <Download className="mr-1.5 size-3.5" aria-hidden />
+            Export Evidence
+          </Button>
+        </div>
         {kase.tags.length > 0 ? (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {kase.tags.map((tag) => (

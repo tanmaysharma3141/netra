@@ -191,13 +191,7 @@ export function DashboardScreen() {
           <section className="mb-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <AlertTrendChart
-                data={Array.from({ length: 30 }, (_, i) => ({
-                  date: new Date(Date.now() - (29 - i) * 86400000).toLocaleDateString('en', { month: 'short', day: 'numeric' }),
-                  critical: Math.floor(Math.random() * 3),
-                  high: Math.floor(Math.random() * 5) + 1,
-                  medium: Math.floor(Math.random() * 8) + 2,
-                  low: Math.floor(Math.random() * 4),
-                }))}
+                data={computeAlertTrend(alerts)}
               />
               <SourceBreakdownChart
                 data={SOURCE_ORDER.map((source) => ({
@@ -381,6 +375,37 @@ interface Totals {
   events_by_source: Record<SourceType, number>
   alerts_by_severity: Record<Severity, number>
   entity_count: number
+}
+
+function computeAlertTrend(alerts: AlertType[]) {
+  const days = 30
+  const now = new Date()
+  const buckets: { date: string; critical: number; high: number; medium: number; low: number }[] = []
+
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now)
+    d.setDate(d.getDate() - i)
+    buckets.push({
+      date: d.toLocaleDateString('en', { month: 'short', day: 'numeric' }),
+      critical: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+    })
+  }
+
+  for (const a of alerts) {
+    const created = new Date(a.created_at)
+    const daysAgo = Math.floor((now.getTime() - created.getTime()) / 86400000)
+    if (daysAgo >= 0 && daysAgo < days) {
+      const bucket = buckets[days - 1 - daysAgo]
+      if (bucket && a.severity in bucket) {
+        bucket[a.severity as keyof typeof bucket]++
+      }
+    }
+  }
+
+  return buckets
 }
 
 function aggregate(cases: Case[]): Totals {
