@@ -6,6 +6,10 @@
   "permissions": [
     "core:default",
     "opener:default",
-    "store:default"
+    "store:default",
+    "notification:default",
+    "notification:allow-send-notification",
+    "notification:allow-request-permission",
+    "notification:allow-is-permission-granted"
   ]
 }

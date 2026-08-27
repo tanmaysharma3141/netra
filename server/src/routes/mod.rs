@@ -77,6 +77,8 @@ pub fn router(state: AppState, login_limiter: std::sync::Arc<crate::ratelimit::R
         .route("/models/promote", post(settings::promote_model))
         .route("/training/trigger", post(settings::trigger_training))
         .route("/training/queue", get(settings::queue))
+        .route("/settings/alerts", get(settings::get_alert_thresholds).patch(settings::update_alert_thresholds))
+        .route("/settings/retention", get(settings::get_retention).patch(settings::update_retention))
         .route("/dashboard", get(dashboard::dashboard))
         .route("/search", get(search::search))
         .route("/cases/{id}/export", get(export::export_case))

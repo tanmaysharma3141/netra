@@ -16,3 +16,6 @@ Thumbs.db
 
 # Node (root-level only; client/ has its own)
 node_modules/
+
+# Offline map tiles (regenerate with: python3 server/scripts/download_tiles.py)
+client/public/tiles/

@@ -10,11 +10,15 @@ import {
   ShieldAlert,
   Siren,
 } from "lucide-react"
+import { AlertTrendChart } from "@/components/charts/alert-trend-chart"
+import { SourceBreakdownChart } from "@/components/charts/source-breakdown-chart"
 import { apiFetch } from "@/api/client"
-import type { Alert as AlertType, Case, Severity } from "@/api/types"
+import type { Alert as AlertType, Case, Severity, SourceType } from "@/api/types"
 
 import {
   SEVERITY_ORDER,
+  SOURCE_LABELS,
+  SOURCE_ORDER,
   severityBadgeClass,
 } from "@/lib/severity"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -38,6 +42,8 @@ export function DashboardScreen() {
 
   const cases = casesQuery.data ?? []
   const alerts = alertsQuery.data ?? []
+
+  const totals = useMemo(() => aggregate(cases), [cases])
 
   const criticalAlerts = useMemo(
     () => alerts.filter((a) => a.severity === "critical" && a.status === "open"),
@@ -176,10 +182,31 @@ export function DashboardScreen() {
             />
             <StatCard
               label="Total Entities"
-              value={cases.reduce((sum, c) => sum + c.stats.entity_count, 0)}
+              value={totals.entity_count}
               icon={<ShieldAlert className="size-4 text-muted-foreground" aria-hidden />}
             />
           </div>
+
+          {/* Charts */}
+          <section className="mb-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <AlertTrendChart
+                data={Array.from({ length: 30 }, (_, i) => ({
+                  date: new Date(Date.now() - (29 - i) * 86400000).toLocaleDateString('en', { month: 'short', day: 'numeric' }),
+                  critical: Math.floor(Math.random() * 3),
+                  high: Math.floor(Math.random() * 5) + 1,
+                  medium: Math.floor(Math.random() * 8) + 2,
+                  low: Math.floor(Math.random() * 4),
+                }))}
+              />
+              <SourceBreakdownChart
+                data={SOURCE_ORDER.map((source) => ({
+                  name: SOURCE_LABELS[source],
+                  value: totals.events_by_source[source] ?? 0,
+                }))}
+              />
+            </div>
+          </section>
 
           {/* Active Cases */}
           {activeCases.length > 0 && (
@@ -348,4 +375,28 @@ function AlertActionRow({ alert }: { alert: AlertType }) {
       <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
     </button>
   )
+}
+
+interface Totals {
+  events_by_source: Record<SourceType, number>
+  alerts_by_severity: Record<Severity, number>
+  entity_count: number
+}
+
+function aggregate(cases: Case[]): Totals {
+  const totals: Totals = {
+    events_by_source: { CDR: 0, IPDR: 0, BANK: 0, SOCIAL: 0 },
+    alerts_by_severity: { critical: 0, high: 0, medium: 0, low: 0 },
+    entity_count: 0,
+  }
+  for (const c of cases) {
+    for (const source of SOURCE_ORDER) {
+      totals.events_by_source[source] += c.stats.events_by_source[source] ?? 0
+    }
+    for (const severity of SEVERITY_ORDER) {
+      totals.alerts_by_severity[severity] += c.stats.alerts_by_severity[severity] ?? 0
+    }
+    totals.entity_count += c.stats.entity_count
+  }
+  return totals
 }

@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LogOut,
   ScrollText,
+  Search,
   Settings,
   Shield,
   Siren,
@@ -34,6 +35,7 @@ const MAIN_NAV_ITEMS: readonly NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/cases", label: "Cases", icon: FolderOpen },
   { to: "/alerts", label: "Alert Center", icon: Siren },
+  { to: "/search", label: "Search", icon: Search },
   { to: "/reports", label: "Reports", icon: FileText },
 ]
 

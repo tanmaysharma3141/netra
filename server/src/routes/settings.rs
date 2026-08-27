@@ -235,6 +235,166 @@ pub struct PromoteRequest {
     pub version: String,
 }
 
+// --- Alert Thresholds ---
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct AlertThresholds {
+    pub imei_min_subscribers: usize,
+    pub imei_min_evidence: i64,
+    pub hawala_window_hours: i64,
+    pub hawala_min_txns: usize,
+    pub hawala_min_total: f64,
+    pub hawala_max_total: f64,
+    pub rapid_window_minutes: i64,
+    pub rapid_min_txns: usize,
+    pub rapid_min_flow: f64,
+    pub silence_min_parties: usize,
+    pub bot_min_posts: usize,
+    pub bot_max_interval_secs: i64,
+    pub round_trip_window_hours: i64,
+    pub tower_jump_max_minutes: i64,
+    pub tower_jump_min_km: f64,
+}
+
+impl Default for AlertThresholds {
+    fn default() -> Self {
+        Self {
+            imei_min_subscribers: 3,
+            imei_min_evidence: 40,
+            hawala_window_hours: 48,
+            hawala_min_txns: 4,
+            hawala_min_total: 40000.0,
+            hawala_max_total: 150000.0,
+            rapid_window_minutes: 60,
+            rapid_min_txns: 3,
+            rapid_min_flow: 300000.0,
+            silence_min_parties: 3,
+            bot_min_posts: 10,
+            bot_max_interval_secs: 300,
+            round_trip_window_hours: 48,
+            tower_jump_max_minutes: 30,
+            tower_jump_min_km: 50.0,
+        }
+    }
+}
+
+pub async fn get_alert_thresholds(
+    State(state): State<AppState>,
+    _authed: Authed,
+) -> Result<Json<AlertThresholds>, Response> {
+    let row: Option<(String,)> = sqlx::query_as(
+        "SELECT value FROM settings WHERE key = 'alert_thresholds' LIMIT 1",
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(internal)?;
+
+    match row {
+        Some((json_str,)) => {
+            let thresholds: AlertThresholds = serde_json::from_str(&json_str)
+                .unwrap_or_default();
+            Ok(Json(thresholds))
+        }
+        None => Ok(Json(AlertThresholds::default())),
+    }
+}
+
+pub async fn update_alert_thresholds(
+    State(state): State<AppState>,
+    authed: Authed,
+    Json(thresholds): Json<AlertThresholds>,
+) -> Result<StatusCode, Response> {
+    authed.require(&[Role::Admin])?;
+
+    let json_str = serde_json::to_string(&thresholds).map_err(internal)?;
+    sqlx::query(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES ('alert_thresholds', ?1)",
+    )
+    .bind(&json_str)
+    .execute(&state.pool)
+    .await
+    .map_err(internal)?;
+
+    db::audit(
+        &state.pool,
+        &authed.id,
+        None,
+        "settings.alert_thresholds_updated",
+        serde_json::json!({}),
+    )
+    .await;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+// --- Data Retention ---
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct RetentionConfig {
+    pub archive_after_days: u64,
+    pub delete_after_days: u64,
+    pub enabled: bool,
+}
+
+impl Default for RetentionConfig {
+    fn default() -> Self {
+        Self {
+            archive_after_days: 365,
+            delete_after_days: 730,
+            enabled: false,
+        }
+    }
+}
+
+pub async fn get_retention(
+    State(state): State<AppState>,
+    _authed: Authed,
+) -> Result<Json<RetentionConfig>, Response> {
+    let row: Option<(String,)> = sqlx::query_as(
+        "SELECT value FROM settings WHERE key = 'retention' LIMIT 1",
+    )
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(internal)?;
+
+    match row {
+        Some((json_str,)) => {
+            let config: RetentionConfig = serde_json::from_str(&json_str)
+                .unwrap_or_default();
+            Ok(Json(config))
+        }
+        None => Ok(Json(RetentionConfig::default())),
+    }
+}
+
+pub async fn update_retention(
+    State(state): State<AppState>,
+    authed: Authed,
+    Json(config): Json<RetentionConfig>,
+) -> Result<StatusCode, Response> {
+    authed.require(&[Role::Admin])?;
+
+    let json_str = serde_json::to_string(&config).map_err(internal)?;
+    sqlx::query(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES ('retention', ?1)",
+    )
+    .bind(&json_str)
+    .execute(&state.pool)
+    .await
+    .map_err(internal)?;
+
+    db::audit(
+        &state.pool,
+        &authed.id,
+        None,
+        "settings.retention_updated",
+        serde_json::json!({}),
+    )
+    .await;
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
 fn internal<E: std::fmt::Display>(e: E) -> Response {
     tracing::error!(err = %e, "internal error");
     ApiError::new("internal", "internal server error")
