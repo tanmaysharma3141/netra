@@ -354,9 +354,8 @@ pub async fn resolve_endpoint(
     .await;
 
     Ok(Json(stats))
-}
-
-fn internal<E: std::fmt::Display>(e: E) -> Response {
-    tracing::error!(err = %e, "internal error");
-    ApiError::new("internal", "internal server error").into_response(StatusCode::INTERNAL_SERVER_ERROR)
+}fn internal<E: std::fmt::Display>(e: E) -> Response {
+    tracing::error!(err = %e, "internal error in entities");
+    ApiError::new("internal", format!("internal server error: {e}"))
+        .into_response(StatusCode::INTERNAL_SERVER_ERROR)
 }

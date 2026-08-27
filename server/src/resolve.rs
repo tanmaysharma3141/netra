@@ -182,9 +182,9 @@ pub async fn resolve_case(pool: &SqlitePool, case_id: Uuid) -> Result<ResolveSta
                     }
                 }
 
-                // Deterministic: IMSI link
+                // Deterministic: IMSI link (map to phone type since IMSI is subscriber identity)
                 if let Some(imsi) = find_raw(obj, &["imsi"]) {
-                    let ik = ensure_entity!("imsi", imsi.to_string());
+                    let ik = ensure_entity!("phone", imsi.to_string());
                     add_edge!(ek, ik, "subscriber_identity", Tier::High, 1.0);
                 }
             }
@@ -388,7 +388,7 @@ pub async fn resolve_case(pool: &SqlitePool, case_id: Uuid) -> Result<ResolveSta
     let now_ref = &now;
     for (k, uuid) in &entities {
         sqlx::query(
-            "INSERT OR IGNORE INTO entities (id, case_id, type, identifier, display_name, link_tier, tags, created_at) VALUES (?1, ?2, ?3, ?4, ?5, NULL, '[]', ?6)",
+            "INSERT OR REPLACE INTO entities (id, case_id, type, identifier, display_name, link_tier, tags, created_at) VALUES (?1, ?2, ?3, ?4, ?5, NULL, '[]', ?6)",
         )
         .bind(uuid.to_string())
         .bind(&case_str)
