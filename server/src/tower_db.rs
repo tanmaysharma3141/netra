@@ -10,6 +10,27 @@ pub struct TowerInfo {
     pub range_m: Option<i64>,
 }
 
+/// Look up a tower by CID only (when LAC is not available)
+pub async fn lookup_cid(
+    pool: &SqlitePool,
+    cid: i64,
+) -> Result<Option<TowerInfo>, String> {
+    let row: Option<(f64, f64, Option<String>, Option<i64>)> = sqlx::query_as(
+        "SELECT lat, lng, operator, range_m FROM cell_towers WHERE cid = ?1 LIMIT 1",
+    )
+    .bind(cid)
+    .fetch_optional(pool)
+    .await
+    .map_err(|e| format!("tower lookup failed: {e}"))?;
+
+    Ok(row.map(|r| TowerInfo {
+        lat: r.0,
+        lng: r.1,
+        operator: r.2,
+        range_m: r.3,
+    }))
+}
+
 /// Look up a tower by LAC + CID (common CDR tower identifiers)
 pub async fn lookup_lac_cid(
     pool: &SqlitePool,
@@ -88,27 +109,67 @@ pub async fn resolve_event_locations(
 
         let Some(tower_id) = tower else { continue };
 
-        // Try LAC/CID format (e.g. "404-123-45678")
-        if let Some(parts) = tower_id.split('-').collect::<Vec<_>>().get(2..) {
-            if parts.len() == 2 {
-                if let (Ok(lac), Ok(cid)) = (parts[0].parse::<i64>(), parts[1].parse::<i64>()) {
-                    if let Ok(Some(info)) = lookup_lac_cid(pool, lac, cid).await {
-                        let _ = sqlx::query(
-                            "UPDATE events SET lat = ?1, lng = ?2 WHERE id = ?3",
-                        )
-                        .bind(info.lat)
-                        .bind(info.lng)
-                        .bind(event_id)
-                        .execute(pool)
-                        .await;
-                        resolved += 1;
-                        continue;
-                    }
+        // Parse tower_id into parts for different formats
+        let parts: Vec<&str> = tower_id.split('-').collect();
+
+        // Format 1: MCC-MNC-LAC-CID (4 parts, e.g. "404-123-4567-89012")
+        if parts.len() == 4 {
+            if let (Ok(_mcc), Ok(_mnc), Ok(lac), Ok(cid)) = (
+                parts[0].parse::<i64>(),
+                parts[1].parse::<i64>(),
+                parts[2].parse::<i64>(),
+                parts[3].parse::<i64>(),
+            ) {
+                if let Ok(Some(info)) = lookup_lac_cid(pool, lac, cid).await {
+                    let _ = sqlx::query(
+                        "UPDATE events SET lat = ?1, lng = ?2 WHERE id = ?3",
+                    )
+                    .bind(info.lat)
+                    .bind(info.lng)
+                    .bind(event_id)
+                    .execute(pool)
+                    .await;
+                    resolved += 1;
+                    continue;
                 }
             }
         }
 
-        // Try operator name lookup
+        // Format 2: MCC-MNC-CID (3 parts, e.g. "404-245-17655")
+        if parts.len() == 3 {
+            if let Ok(cid) = parts[2].parse::<i64>() {
+                if let Ok(Some(info)) = lookup_cid(pool, cid).await {
+                    let _ = sqlx::query(
+                        "UPDATE events SET lat = ?1, lng = ?2 WHERE id = ?3",
+                    )
+                    .bind(info.lat)
+                    .bind(info.lng)
+                    .bind(event_id)
+                    .execute(pool)
+                    .await;
+                    resolved += 1;
+                    continue;
+                }
+            }
+        }
+
+        // Format 3: bare numeric CID (e.g. "17655")
+        if let Ok(cid) = tower_id.parse::<i64>() {
+            if let Ok(Some(info)) = lookup_cid(pool, cid).await {
+                let _ = sqlx::query(
+                    "UPDATE events SET lat = ?1, lng = ?2 WHERE id = ?3",
+                )
+                .bind(info.lat)
+                .bind(info.lng)
+                .bind(event_id)
+                .execute(pool)
+                .await;
+                resolved += 1;
+                continue;
+            }
+        }
+
+        // Format 4: operator-prefixed name (e.g. "JIO-PB-40221" or "AIRTEL-CHD-001")
         if let Ok(Some(info)) = lookup_by_name(pool, tower_id).await {
             let _ = sqlx::query(
                 "UPDATE events SET lat = ?1, lng = ?2 WHERE id = ?3",

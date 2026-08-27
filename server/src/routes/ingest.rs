@@ -166,6 +166,13 @@ async fn run_job(
                 return;
             }
 
+            // Resolve cell tower IDs to real lat/lng from tower DB
+            match crate::tower_db::resolve_event_locations(&state.pool, &case_id.to_string()).await {
+                Ok(n) if n > 0 => tracing::info!(resolved = n, "tower DB resolved event locations"),
+                Ok(_) => (),
+                Err(e) => tracing::warn!(err = %e, "tower DB resolution skipped"),
+            }
+
             let _ = sqlx::query(
                 "UPDATE ingest_jobs SET status='done', records_parsed=?2, errors=?3, finished_at=?4 WHERE id=?1",
             )
