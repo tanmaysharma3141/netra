@@ -538,21 +538,19 @@ function ModelSection() {
                     <Badge
                       variant="outline"
                       className={`font-mono text-[10px] tracking-wider uppercase ${
-                        model.status === "active"
+                        model.active
                           ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-500"
-                          : model.status === "training"
-                            ? "border-severity-high/40 bg-severity-high/10 text-severity-high"
-                            : "text-muted-foreground"
+                          : "text-muted-foreground"
                       }`}
                     >
-                      {model.status}
+                      {model.active ? "active" : "inactive"}
                     </Badge>
                   </TableCell>
                   <TableCell className="font-mono text-xs whitespace-nowrap text-muted-foreground">
-                    {new Date(model.created_at).toLocaleString("en-IN")}
+                    {model.trained_at ? new Date(model.trained_at).toLocaleString("en-IN") : "—"}
                   </TableCell>
                   <TableCell className="text-right">
-                    {model.status !== "active" ? (
+                    {!model.active ? (
                       <Button
                         size="sm"
                         variant="outline"
@@ -641,7 +639,7 @@ function TrainingSection() {
                 Queue Size
               </span>
               <span className="font-mono text-lg font-semibold tabular-nums">
-                {queueQuery.data!.queue_size.toLocaleString("en-IN")}
+                {queueQuery.data!.queued_events.toLocaleString("en-IN")}
               </span>
             </div>
             <Separator orientation="vertical" className="hidden h-8 sm:block" />
@@ -650,7 +648,7 @@ function TrainingSection() {
                 Min Batch
               </span>
               <span className="font-mono text-lg font-semibold tabular-nums">
-                {queueQuery.data!.min_batch}
+                {queueQuery.data!.minimum_batch}
               </span>
             </div>
             <Separator orientation="vertical" className="hidden h-8 sm:block" />
@@ -664,19 +662,7 @@ function TrainingSection() {
                   : "Never"}
               </span>
             </div>
-            {queueQuery.data!.last_loss !== null ? (
-              <>
-                <Separator orientation="vertical" className="hidden h-8 sm:block" />
-                <div className="flex flex-col">
-                  <span className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
-                    Last Loss
-                  </span>
-                  <span className="font-mono text-lg font-semibold tabular-nums">
-                    {queueQuery.data!.last_loss!.toFixed(4)}
-                  </span>
-                </div>
-              </>
-            ) : null}
+
             <div className="ml-auto">
               <Button
                 size="sm"

@@ -25,9 +25,9 @@ export function updateWebhooks(config: Partial<WebhookConfig>): Promise<WebhookC
 
 export interface ModelVersion {
   version: string
-  status: "active" | "inactive" | "training"
-  created_at: string
-  feedback_count?: number
+  active: boolean
+  trained_at: string | null
+  base_model: string
 }
 
 /** GET /models — list model versions (Admin only). */
@@ -46,10 +46,9 @@ export function promoteModel(version: string): Promise<{ promoted: string }> {
 /* ── Training ── */
 
 export interface TrainingQueue {
-  queue_size: number
-  min_batch: number
+  queued_events: number
+  minimum_batch: number
   last_run: string | null
-  last_loss: number | null
 }
 
 /** GET /training/queue — training queue info (Admin only). */
