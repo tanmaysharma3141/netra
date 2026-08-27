@@ -13,7 +13,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TimelinePanel } from "@/components/timeline/timeline-panel"
@@ -88,18 +87,18 @@ export function CaseDetailScreen() {
   const kase = caseQuery.data
 
   return (
-    <div className="mx-auto max-w-6xl p-6">
+    <div className="mx-auto max-w-6xl p-8">
       <Link
         to="/cases"
-        className="mb-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+        className="mb-4 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="size-3.5" aria-hidden />
         All cases
       </Link>
 
-      <header className="mb-5">
+      <header className="mb-6">
         <div className="flex flex-wrap items-center gap-2.5">
-          <h1 className="text-lg font-semibold">{kase.title}</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{kase.title}</h1>
           <Badge variant="outline" className="font-mono text-[10px] tracking-wider uppercase">
             {kase.status}
           </Badge>
@@ -147,7 +146,7 @@ export function CaseDetailScreen() {
 
       <StatsStrip kase={kase} />
 
-      <Tabs defaultValue="timeline" className="mt-6">
+      <Tabs defaultValue="timeline" className="mt-8">
         <TabsList className="w-full justify-start overflow-x-auto">
           {visibleTabs.map((tab) => (
             <TabsTrigger key={tab.value} value={tab.value}>
@@ -202,13 +201,11 @@ function StatsStrip({ kase }: { kase: Case }) {
 
   return (
     <Card>
-      <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-3 px-4 py-3">
+      <CardContent className="grid grid-cols-2 gap-4 px-5 py-4 sm:grid-cols-4">
         <Metric label="Entities" value={kase.stats.entity_count.toLocaleString("en-IN")} />
-        <Separator orientation="vertical" className="hidden h-8 sm:block" />
         <Metric label="Events" value={totalEvents.toLocaleString("en-IN")} />
-        <Separator orientation="vertical" className="hidden h-8 sm:block" />
         <div className="flex flex-col gap-1">
-          <span className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
+          <span className="text-xs font-medium text-muted-foreground">
             Events by source
           </span>
           <div className="flex gap-3 font-mono text-xs tabular-nums">
@@ -220,9 +217,8 @@ function StatsStrip({ kase }: { kase: Case }) {
             ))}
           </div>
         </div>
-        <Separator orientation="vertical" className="hidden h-8 md:block" />
         <div className="flex flex-col gap-1">
-          <span className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
+          <span className="text-xs font-medium text-muted-foreground">
             Alerts by severity
           </span>
           <div className="flex gap-1.5">
@@ -248,10 +244,10 @@ function StatsStrip({ kase }: { kase: Case }) {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col">
-      <span className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
+      <span className="text-xs font-medium text-muted-foreground">
         {label}
       </span>
-      <span className="font-mono text-lg font-semibold tabular-nums">{value}</span>
+      <span className="text-2xl font-bold tracking-tight tabular-nums">{value}</span>
     </div>
   )
 }

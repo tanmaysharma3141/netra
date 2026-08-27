@@ -61,8 +61,8 @@ export function AppShell() {
         <div className="flex items-center gap-2 px-4 py-4">
           <Eye className="size-5 text-primary" aria-hidden />
           <div className="flex flex-col">
-            <span className="font-mono text-sm font-semibold tracking-widest">NETRA</span>
-            <span className="text-[10px] tracking-[0.18em] text-muted-foreground uppercase">
+            <span className="text-sm font-semibold tracking-wide">NETRA</span>
+            <span className="text-[10px] font-medium text-muted-foreground">
               Forensic Console
             </span>
           </div>
@@ -70,14 +70,14 @@ export function AppShell() {
 
         <Separator className="bg-sidebar-border" />
 
-        <nav className="flex-1 space-y-0.5 px-2 py-3">
+        <nav className="flex-1 space-y-1 px-2 py-4">
           {MAIN_NAV_ITEMS.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
-                `flex items-center gap-2.5 rounded-sm px-3 py-2 text-sm transition-colors ${
+                `flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm transition-colors ${
                   isActive
                     ? "bg-sidebar-accent font-medium text-sidebar-primary"
                     : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
@@ -137,7 +137,7 @@ function AdminNavGroup({
     <div className="mt-2">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="flex w-full items-center gap-2.5 rounded-sm px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-foreground"
+        className="flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-sidebar-accent/60 hover:text-foreground"
         aria-expanded={expanded}
       >
         <Shield className="size-4 shrink-0" aria-hidden />
@@ -155,7 +155,7 @@ function AdminNavGroup({
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center gap-2.5 rounded-sm px-3 py-2 text-sm transition-colors ${
+                `flex items-center gap-2.5 rounded-md px-3 py-2.5 text-sm transition-colors ${
                   isActive
                     ? "bg-sidebar-accent font-medium text-sidebar-primary"
                     : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"

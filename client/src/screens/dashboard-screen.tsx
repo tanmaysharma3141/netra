@@ -76,11 +76,10 @@ export function DashboardScreen() {
 
   const isLoading = casesQuery.isPending || alertsQuery.isPending
 
-  return (
-    <div className="mx-auto max-w-6xl p-6">
-      <header className="mb-6">
-        <h1 className="text-lg font-semibold">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
+  return (      <div className="mx-auto max-w-6xl p-8">
+      <header className="mb-8">
+        <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           What needs your attention right now.
         </p>
       </header>
@@ -166,7 +165,7 @@ export function DashboardScreen() {
           )}
 
           {/* Quick Stats */}
-          <div className="mb-6 grid grid-cols-3 gap-3">
+          <div className="mb-8 grid grid-cols-3 gap-4">
             <StatCard
               label="Active Cases"
               value={activeCases.length}
@@ -206,7 +205,7 @@ export function DashboardScreen() {
           {activeCases.length > 0 && (
             <section className="mb-6">
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
+                <h2 className="text-sm font-medium text-muted-foreground">
                   Active Cases
                 </h2>
                 <Button
@@ -230,7 +229,7 @@ export function DashboardScreen() {
           {recentOpenAlerts.length > 0 && (
             <section>
               <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-mono text-[11px] tracking-[0.18em] text-muted-foreground uppercase">
+                <h2 className="text-sm font-medium text-muted-foreground">
                   Recent Alerts
                 </h2>
                 <Button
@@ -277,15 +276,14 @@ function StatCard({
           ? "border-red-500/30 bg-red-500/5"
           : "border-border bg-card"
       } ${onClick ? "cursor-pointer hover:bg-accent/50" : ""}`}
-    >
-      <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted">
+    >              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
         {icon}
       </div>
       <div>
-        <p className="font-mono text-2xl font-semibold tabular-nums">
+        <p className="text-3xl font-bold tracking-tight tabular-nums">
           {value.toLocaleString("en-IN")}
         </p>
-        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="mt-0.5 text-xs font-medium text-muted-foreground">{label}</p>
       </div>
     </Comp>
   )
@@ -294,7 +292,7 @@ function StatCard({
 function FolderIcon() {
   return (
     <svg
-      className="size-4 text-muted-foreground"
+      className="size-4 text-primary"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 24 24"
       fill="none"
